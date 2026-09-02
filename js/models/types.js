@@ -387,6 +387,8 @@ export function createPlace({
       originPlaceId: specificData?.originPlaceId || null,
       destinationPlaceId: specificData?.destinationPlaceId || null,
       distance: specificData?.distance || '',
+      duration: specificData?.duration || '',
+      intermediatePoints: specificData?.intermediatePoints || '',
       transitStatus: specificData?.transitStatus || '',
       controlGroupOrEntity: specificData?.controlGroupOrEntity || '',
       mouthPlaceId: specificData?.mouthPlaceId || null,
@@ -401,6 +403,9 @@ export function createPlace({
       y: mapData?.y !== undefined ? Number(mapData.y) : null,
       coordinates: mapData?.coordinates || '',
       mapId: mapData?.mapId || null,
+      geometry: mapData?.geometry || null, // 'point' | 'polyline' | 'polygon'
+      bounds: mapData?.bounds || null,
+      zoomLevel: mapData?.zoomLevel !== undefined ? Number(mapData.zoomLevel) : null,
       icon: mapData?.icon || '',
       color: mapData?.color || ''
     },

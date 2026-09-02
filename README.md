@@ -49,16 +49,17 @@
     - *Geografía Física y Natural*: Mares, océanos, ríos (con origen y desembocadura), cordilleras, montañas, bosques, valles y desiertos.
     - *Infraestructura y Vías*: Carreteras, calzadas (con origen y destino), puentes, puertos, rutas comerciales y canales.
     - *Lugares Especiales*: Portales mágicos, ruinas antiguas, anomalías, santuarios y zonas de peligro sobrenatural.
-  - **Tres modos de exploración integrados**:
-    - **Explorador por Categorías**: Filtros rápidos por las 5 categorías, buscador en vivo, ordenación, badges cromáticos, tipo específico, estado y métricas de sub-lugares y autoridades.
-    - **Árbol Jerárquico Interactivo**: Visualización arbórea multinivel (con anidamiento arbitrario y prevención estricta de bucles/ciclos directos o indirectos), migas de pan automáticas, botones de plegado/desplegado y adición rápida de sub-lugares.
-    - **Red Conceptual**: Visualizador de grafo en Canvas 2D interactivo con nodos coloreados por categoría, aristas espaciales y territoriales, arrastre fluido, recentrado y panel inspector de conexiones.
-  - **Ficha Detallada del Lugar**: Modal con migas de pan de ancestros, propiedades dinámicas contextuales, sub-lugares contenidos, panel de autoridades vinculadas (con salto a personajes), relaciones espaciales directas y notas creativas asociadas.
-  - **Autoridades y Responsabilidades**: Asignación de gobernantes, vigías, comandantes o custodios sin duplicar datos del personaje, especificando cargo/título y tipo de responsabilidad (civil, militar, religiosa, propietaria).
-  - **Integración Transversal y Relaciones Espaciales**:
-    - Relaciones multi-entidad en el grafo: Lugar ↔ Lugar, Personaje ↔ Lugar y Grupo ↔ Lugar (ej: límites fronterizos, conexiones viales, sedes de organizaciones, gobernanza o residencia).
-    - Fichas de personajes con bloque de lugares vinculados y salto interactivo.
-    - Notas creativas con asignación opcional de lugar y badge de ubicación.
+  - **Dos modos de exploración optimizados**:
+    - **Explorador de Lugares**: Vista enciclopédica organizada por las 5 categorías con secciones plegables independientes, buscador en tiempo real, selector de subtipos, filtros por etiquetas, ordenación y tarjetas escaneables con acentos diferenciados y sin emojis decorativos.
+    - **Árbol Jerárquico Interactivo**: Estructura multinivel territorial con controles de expansión/colapso, conteo de descendientes, prevención estricta de ciclos y sección dedicada **"Sin clasificar en la jerarquía"** para organizar enclaves huérfanos.
+  - **Ficha Detallada del Lugar (Centro Enciclopédico Wiki)**:
+    - Organizada en cuatro pestañas ligeras: *Visión General*, *Ubicación & Vías*, *Personajes & Casas* y *Notas Creativas*.
+    - Migas de pan jerárquicas totalmente navegables con salto directo entre territorios contenedores y contenidos.
+    - Relaciones espaciales textuales y directas (limita con, conecta con, próximo a...).
+    - Vías e infraestructuras con origen, destino, paradas intermedias, distancia y duración estimada.
+    - Bloque de gobernantes, autoridades y personajes vinculados con navegación bidireccional inmediata.
+    - Casas, facciones y notas creativas contextuales.
+  - **Preparación cartográfica mínima**: Modelo de datos estructurado para soportar coordenadas, dimensiones y geometría en el futuro editor de mapas.
 - **Cuaderno de Notas e Ideas**:
   - Repositorio de ideas de trama, ambientación, investigación y misterios.
   - Organización por etiquetas dinámicas (#mundo, #magia, #trama, #misterio, #investigación).
