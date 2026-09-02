@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Writer OS — Espacio de Trabajo Creativo para Escritores</title>
+  <meta name="description" content="Plataforma integral y elegante para escritores: escribe tus obras y conecta capítulos, personajes y notas." />
+
+  <!-- Estilos del Sistema de Diseño Editorial -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/editor.css" />
+  <link rel="stylesheet" href="css/components.css" />
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✒️</text></svg>">
+</head>
+<body>
+  <div class="app-root">
+    
+    <!-- Cabecera Superior y Navegación Dinámica -->
+    <header class="top-nav" id="app-top-nav"></header>
+
+    <!-- Contenedor de Vistas Dinámicas -->
+    <main class="main-content" id="app-main"></main>
+
+  </div>
+
+  <!-- Portal Modal Reutilizable -->
+  <div class="modal-backdrop" id="app-modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title">Título</h2>
+        <button class="btn btn-subtle btn-icon btn-sm modal-close-btn" title="Cerrar (Esc)">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body"></div>
+      <div class="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- Portal de Paleta de Comandos (Ctrl + K) -->
+  <div class="modal-backdrop" id="palette-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-container palette-container">
+      <div class="palette-search-wrapper">
+        <svg class="icon icon-sm" style="color: var(--text-muted);" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input
+          type="text"
+          class="palette-input"
+          placeholder="Buscar o escribir una acción... (↑/↓ para mover, Enter para elegir, Esc para salir)"
+          autocomplete="off"
+        />
+        <span class="palette-shortcut">Esc</span>
+      </div>
+      <div class="palette-results"></div>
+    </div>
+  </div>
+
+  <!-- Contenedor para Notificaciones Toast -->
+  <div class="toast-container" id="app-toast-container"></div>
+
+  <!-- Controlador de la Aplicación -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
