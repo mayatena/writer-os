@@ -3,5 +3,10 @@ title Writer OS
 echo ========================================================
 echo   Iniciando Writer OS...
 echo ========================================================
-powershell -ExecutionPolicy Bypass -File "%~dp0servidor.ps1"
-pause
+cd /d "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0servidor.ps1"
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo Ocurrio un error al iniciar el servidor de Writer OS.
+    pause
+)
