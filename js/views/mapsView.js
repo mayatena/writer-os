@@ -401,6 +401,7 @@ export class MapsView {
      3. PESTAÑA IZQUIERDA: HERRAMIENTAS GEOGRÁFICAS & LUGARES
      ========================================================================== */
   renderLeftTabContent(project, map) {
+    if (!this.sidebarContent) return;
     if (this.leftTab === 'tools') {
       this.renderToolsPanel();
     } else {
@@ -613,7 +614,7 @@ export class MapsView {
                 </div>
               </div>
               <div>
-                ${isPlaced ? `<span class="placed-indicator">En mapa</span>` : `<span style="font-size:0.6875rem; color:var(--accent); font-weight:600;">+ Añadir</span>`}
+                ${isPlaced ? `<span class="placed-indicator">En mapa</span>` : `<span class="unplaced-indicator">No representado</span>`}
               </div>
             </div>
           `;
@@ -800,22 +801,39 @@ export class MapsView {
     const h = this.canvas.height;
     const preset = MAP_PRESETS[map.preset] || MAP_PRESETS.editorial;
 
-    // 1. Limpiar lienzo con el fondo del preset
+    // 1. Limpiar lienzo completo con el fondo del espacio de trabajo
     ctx.save();
-    ctx.fillStyle = preset.bg;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    ctx.fillStyle = isDark ? '#141519' : '#EDE8DF';
     ctx.fillRect(0, 0, w, h);
 
     // 2. Aplicar transformación de Cámara (Pan y Zoom)
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.zoom, this.zoom);
 
-    // 3. Dibujar marco delimitador del mapa
+    // Sombra del lienzo cartográfico para distinguir claramente los límites del mapa
     ctx.save();
-    ctx.strokeStyle = preset.stroke;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(0, 0, map.width, map.height);
+    ctx.shadowColor = isDark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(0, 0, 0, 0.16)';
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = preset.bg;
+    ctx.fillRect(0, 0, map.width, map.height);
+    ctx.restore();
 
-    // Cuadrícula sutil
+    // 3. RECORTE ESTRICTO A LOS LÍMITES DEL LIENZO (0, 0, map.width, map.height)
+    // El lienzo se comporta como un viewport con límites estrictos.
+    // Si un elemento sobresale parcialmente, la parte que queda fuera NO se renderiza.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, map.width, map.height);
+    ctx.clip();
+
+    // Fondo del mapa dentro de los límites
+    ctx.fillStyle = preset.bg;
+    ctx.fillRect(0, 0, map.width, map.height);
+
+    // Cuadrícula sutil dentro del mapa
     ctx.strokeStyle = preset.gridColor;
     ctx.lineWidth = 1;
     const gridSize = 150;
@@ -829,7 +847,6 @@ export class MapsView {
       ctx.lineTo(map.width, gy);
     }
     ctx.stroke();
-    ctx.restore();
 
     // 4. Imagen de referencia si existe y está visible
     if (map.referenceImage && map.referenceImage.visible && this.referenceImageObj && this.referenceImageObj.complete) {
@@ -910,6 +927,15 @@ export class MapsView {
       ctx.strokeRect(bx, by, bw, bh);
       ctx.restore();
     }
+
+    ctx.restore(); // Termina el recorte estricto del contenido del mapa
+
+    // 10. Marco delimitador exterior del mapa dibujado nítidamente en el borde
+    ctx.save();
+    ctx.strokeStyle = preset.stroke;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, map.width, map.height);
+    ctx.restore();
 
     ctx.restore(); // Restaurar Pan y Zoom
   }
@@ -1927,18 +1953,42 @@ export class MapsView {
     this.inspectorEl.querySelector('#inp-elem-x')?.addEventListener('change', (e) => {
       const val = parseFloat(e.target.value);
       if (!isNaN(val)) {
-        store.updateMapElement(map.id, elem.id, { x: Math.round(val) });
-        this.pushHistoryState(store.getMap(map.id));
-        this.requestDraw(store.getMap(map.id));
+        const newX = Math.round(val);
+        const testElem = { ...elem, x: newX };
+        if (elem.placeId && this.isPointCompletelyOutsideMap(testElem, map)) {
+          store.removeMapElement(map.id, elem.id);
+          this.selectedElementIds.delete(elem.id);
+          this.pushHistoryState(store.getMap(map.id));
+          this.renderLeftTabContent(project, store.getMap(map.id));
+          this.renderInspector(store.getMap(map.id), project);
+          this.requestDraw(store.getMap(map.id));
+          showToast(`"${elem.label || 'Lugar'}" quedó fuera del mapa y vuelve a estar no representado.`);
+        } else {
+          store.updateMapElement(map.id, elem.id, { x: newX });
+          this.pushHistoryState(store.getMap(map.id));
+          this.requestDraw(store.getMap(map.id));
+        }
       }
     });
 
     this.inspectorEl.querySelector('#inp-elem-y')?.addEventListener('change', (e) => {
       const val = parseFloat(e.target.value);
       if (!isNaN(val)) {
-        store.updateMapElement(map.id, elem.id, { y: Math.round(val) });
-        this.pushHistoryState(store.getMap(map.id));
-        this.requestDraw(store.getMap(map.id));
+        const newY = Math.round(val);
+        const testElem = { ...elem, y: newY };
+        if (elem.placeId && this.isPointCompletelyOutsideMap(testElem, map)) {
+          store.removeMapElement(map.id, elem.id);
+          this.selectedElementIds.delete(elem.id);
+          this.pushHistoryState(store.getMap(map.id));
+          this.renderLeftTabContent(project, store.getMap(map.id));
+          this.renderInspector(store.getMap(map.id), project);
+          this.requestDraw(store.getMap(map.id));
+          showToast(`"${elem.label || 'Lugar'}" quedó fuera del mapa y vuelve a estar no representado.`);
+        } else {
+          store.updateMapElement(map.id, elem.id, { y: newY });
+          this.pushHistoryState(store.getMap(map.id));
+          this.requestDraw(store.getMap(map.id));
+        }
       }
     });
 
@@ -2092,6 +2142,11 @@ export class MapsView {
 
       const rect = canvas.getBoundingClientRect();
       const worldPos = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const r = 18;
+      if (worldPos.x + r < 0 || worldPos.x - r > map.width || worldPos.y + r < 0 || worldPos.y - r > map.height) {
+        showToast(`No se puede situar "${place.name}" fuera de los límites del mapa.`);
+        return;
+      }
       this.placeWorldEntityOnMap(map, place, worldPos.x, worldPos.y);
     });
 
@@ -2338,21 +2393,41 @@ export class MapsView {
     if (this.isDraggingElement) {
       this.isDraggingElement = false;
       let anyMoved = false;
-      // Persistir nuevas coordenadas de los elementos movidos
-      (map.elements || []).forEach(el => {
+      const removedPlaceNames = [];
+
+      // Persistir nuevas coordenadas o eliminar representaciones de lugares de Mundo que hayan salido completamente del lienzo
+      const elementsToCheck = [...(map.elements || [])];
+      elementsToCheck.forEach(el => {
         if (this.selectedElementIds.has(el.id)) {
           anyMoved = true;
           if (el.type === 'point' || el.type === 'annotation') {
-            store.updateMapElement(map.id, el.id, { x: el.x, y: el.y });
+            if (el.placeId && this.isPointCompletelyOutsideMap(el, map)) {
+              store.removeMapElement(map.id, el.id);
+              this.selectedElementIds.delete(el.id);
+              removedPlaceNames.push(el.label || 'Lugar');
+            } else {
+              store.updateMapElement(map.id, el.id, { x: el.x, y: el.y });
+            }
           } else if (el.points) {
             store.updateMapElement(map.id, el.id, { points: el.points });
           }
         }
       });
+
+      if (removedPlaceNames.length > 0) {
+        showToast(
+          removedPlaceNames.length === 1
+            ? `"${removedPlaceNames[0]}" quedó fuera del mapa y vuelve a estar no representado.`
+            : `${removedPlaceNames.length} lugares quedaron fuera del mapa y vuelven a estar no representados.`
+        );
+        this.renderLeftTabContent(project, store.getMap(map.id));
+      }
+
       if (anyMoved) {
         this.pushHistoryState(store.getMap(map.id));
       }
-      this.renderInspector(map, project);
+      this.renderInspector(store.getMap(map.id), project);
+      this.requestDraw(store.getMap(map.id));
     }
 
     if (this.isBoxSelecting) {
@@ -2370,8 +2445,8 @@ export class MapsView {
           }
         });
       }
-      this.renderInspector(map, project);
-      this.requestDraw(map);
+      this.renderInspector(store.getMap(map.id), project);
+      this.requestDraw(store.getMap(map.id));
     }
   }
 
@@ -2395,6 +2470,15 @@ export class MapsView {
         }, 100);
       }
     }
+  }
+
+  /* ==========================================================================
+     LÍMITES DEL LIENZO Y DETECCIÓN FUERA DE MAPA
+     ========================================================================== */
+  isPointCompletelyOutsideMap(el, map) {
+    if (!el || (el.type !== 'point' && el.type !== 'annotation')) return false;
+    const r = (el.size || 28) / 2;
+    return (el.x + r < 0 || el.x - r > map.width || el.y + r < 0 || el.y - r > map.height);
   }
 
   /* ==========================================================================
@@ -3688,6 +3772,12 @@ export class MapsView {
     const offCtx = offCanvas.getContext('2d');
     const preset = MAP_PRESETS[map.preset] || MAP_PRESETS.editorial;
 
+    // Recorte estricto a las dimensiones del mapa
+    offCtx.save();
+    offCtx.beginPath();
+    offCtx.rect(0, 0, map.width, map.height);
+    offCtx.clip();
+
     // Fondo
     offCtx.fillStyle = preset.bg;
     offCtx.fillRect(0, 0, map.width, map.height);
@@ -3700,15 +3790,20 @@ export class MapsView {
       offCtx.restore();
     }
 
-    // Capas
-    const layers = [...(map.layers || MAP_DEFAULT_LAYERS)].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-    layers.forEach(layer => {
-      if (layer.visible === false) return;
-      const elems = (map.elements || []).filter(el => (el.layerId || 'layer-lugares') === layer.id && el.isVisible !== false);
-      elems.filter(el => el.type === 'area').forEach(el => this.drawAreaElement(offCtx, el, preset));
-      elems.filter(el => el.type === 'line').forEach(el => this.drawLineElement(offCtx, el, preset));
-      elems.filter(el => el.type === 'point' || el.type === 'annotation').forEach(el => this.drawPointElement(offCtx, el, preset));
-    });
+    // Dibujado jerárquico natural respetando capas visibles
+    const visibleLayerIds = new Set((map.layers || MAP_DEFAULT_LAYERS).filter(l => l.visible !== false).map(l => l.id));
+    const allVisible = (map.elements || []).filter(el => el.isVisible !== false && visibleLayerIds.has(el.layerId || 'layer-lugares'));
+
+    allVisible.filter(el => el.type === 'area' && (el.icon === 'mar' || el.icon === 'lago' || el.layerId === 'layer-agua')).forEach(el => this.drawAreaElement(offCtx, el, preset));
+    allVisible.filter(el => el.type === 'area' && el.icon !== 'mar' && el.icon !== 'lago' && el.layerId !== 'layer-agua').forEach(el => this.drawAreaElement(offCtx, el, preset));
+    allVisible.filter(el => el.type === 'line' && el.icon === 'rio').forEach(el => this.drawLineElement(offCtx, el, preset));
+    allVisible.filter(el => el.type === 'line' && el.icon !== 'rio').forEach(el => this.drawLineElement(offCtx, el, preset));
+    allVisible.filter(el => el.type === 'point' && ['montana', 'colina', 'volcan', 'cueva'].includes(el.icon)).forEach(el => this.drawPointElement(offCtx, el, preset));
+    allVisible.filter(el => el.type === 'point' && !['montana', 'colina', 'volcan', 'cueva', 'texto'].includes(el.icon)).forEach(el => this.drawPointElement(offCtx, el, preset));
+    allVisible.filter(el => el.type === 'annotation' || el.icon === 'texto').forEach(el => this.drawPointElement(offCtx, el, preset));
+    allVisible.filter(el => el.showLabel && el.label).forEach(el => this.drawElementLabel(offCtx, el, preset));
+
+    offCtx.restore();
 
     try {
       const dataUrl = offCanvas.toDataURL('image/png');
