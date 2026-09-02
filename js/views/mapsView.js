@@ -839,36 +839,52 @@ export class MapsView {
       ctx.restore();
     }
 
-    // 5. Agrupar capas activas por orden de zIndex
+    // 5. Agrupar capas activas por orden de zIndex y visibilidad
     const layers = [...(map.layers || MAP_DEFAULT_LAYERS)].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-    const elementsByLayer = new Map();
-    layers.forEach(l => elementsByLayer.set(l.id, []));
+    const visibleLayerIds = new Set(layers.filter(l => l.visible !== false).map(l => l.id));
 
-    (map.elements || []).forEach(el => {
-      const targetLayer = el.layerId || 'layer-lugares';
-      if (!elementsByLayer.has(targetLayer)) elementsByLayer.set(targetLayer, []);
-      elementsByLayer.get(targetLayer).push(el);
+    // Filtrar elementos visibles
+    const allVisible = (map.elements || []).filter(el => el.isVisible !== false && visibleLayerIds.has(el.layerId || 'layer-lugares'));
+
+    // 6. DIBUJADO CARTOGRÁFICO JERÁRQUICO NATURAL (Ilustración editorial)
+    // Paso 1: Masas de agua poligonales (océanos, mares, lagos)
+    allVisible.filter(el => el.type === 'area' && (el.icon === 'mar' || el.icon === 'lago' || el.layerId === 'layer-agua')).forEach(el => {
+      this.drawAreaElement(ctx, el, preset);
     });
 
-    // 6. Dibujar elementos por capa
-    layers.forEach(layer => {
-      if (layer.visible === false) return;
-      const elems = elementsByLayer.get(layer.id) || [];
+    // Paso 2: Terrenos y regiones continentales (bosques, desiertos, valles)
+    allVisible.filter(el => el.type === 'area' && el.icon !== 'mar' && el.icon !== 'lago' && el.layerId !== 'layer-agua').forEach(el => {
+      this.drawAreaElement(ctx, el, preset);
+    });
 
-      // Áreas primero (para que queden debajo de líneas y puntos de la misma capa)
-      elems.filter(el => el.type === 'area' && el.isVisible !== false).forEach(el => {
-        this.drawAreaElement(ctx, el, preset);
-      });
+    // Paso 3: Cursos de agua serpenteantes (ríos, afluentes)
+    allVisible.filter(el => el.type === 'line' && el.icon === 'rio').forEach(el => {
+      this.drawLineElement(ctx, el, preset);
+    });
 
-      // Líneas
-      elems.filter(el => el.type === 'line' && el.isVisible !== false).forEach(el => {
-        this.drawLineElement(ctx, el, preset);
-      });
+    // Paso 4: Vías e infraestructura (carreteras, caminos, murallas, fronteras)
+    allVisible.filter(el => el.type === 'line' && el.icon !== 'rio').forEach(el => {
+      this.drawLineElement(ctx, el, preset);
+    });
 
-      // Puntos y Anotaciones
-      elems.filter(el => (el.type === 'point' || el.type === 'annotation') && el.isVisible !== false).forEach(el => {
-        this.drawPointElement(ctx, el, preset);
-      });
+    // Paso 5: Accidentes geográficos de relieve (montañas, colinas, volcanes, cuevas)
+    allVisible.filter(el => el.type === 'point' && ['montana', 'colina', 'volcan', 'cueva'].includes(el.icon)).forEach(el => {
+      this.drawPointElement(ctx, el, preset);
+    });
+
+    // Paso 6: Lugares y asentamientos (ciudades, castillos, torres, puertos, portales, marcadores)
+    allVisible.filter(el => el.type === 'point' && !['montana', 'colina', 'volcan', 'cueva', 'texto'].includes(el.icon)).forEach(el => {
+      this.drawPointElement(ctx, el, preset);
+    });
+
+    // Paso 7: Anotaciones libres
+    allVisible.filter(el => el.type === 'annotation' || el.icon === 'texto').forEach(el => {
+      this.drawPointElement(ctx, el, preset);
+    });
+
+    // Paso 8: Rótulos / Etiquetas tipográficas sobre el mapa (evita que queden cubiertos)
+    allVisible.filter(el => el.showLabel && el.label).forEach(el => {
+      this.drawElementLabel(ctx, el, preset);
     });
 
     // 7. Dibujar selección y vértices editables
@@ -899,79 +915,295 @@ export class MapsView {
   }
 
   /* ==========================================================================
-     DIBUJADORES ESPECÍFICOS DE ELEMENTOS
+     DIBUJADORES ESPECÍFICOS DE ELEMENTOS (LENGUAJE DE MAPA ILUSTRADO)
      ========================================================================== */
+  createSmoothPath(ctx, points, closed = false) {
+    if (!points || points.length === 0) return;
+    if (points.length === 1) {
+      ctx.moveTo(points[0].x, points[0].y);
+      return;
+    }
+    if (points.length === 2) {
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+      return;
+    }
+
+    if (closed) {
+      const len = points.length;
+      const mid0 = {
+        x: (points[len - 1].x + points[0].x) / 2,
+        y: (points[len - 1].y + points[0].y) / 2
+      };
+      ctx.moveTo(mid0.x, mid0.y);
+      for (let i = 0; i < len; i++) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % len];
+        const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        ctx.quadraticCurveTo(p1.x, p1.y, mid.x, mid.y);
+      }
+      ctx.closePath();
+    } else {
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 0; i < points.length - 1; i++) {
+        const pCurrent = points[i];
+        const pNext = points[i + 1];
+        const midX = (pCurrent.x + pNext.x) / 2;
+        const midY = (pCurrent.y + pNext.y) / 2;
+        ctx.quadraticCurveTo(pCurrent.x, pCurrent.y, midX, midY);
+      }
+      ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    }
+  }
+
   drawAreaElement(ctx, el, preset) {
     if (!el.points || el.points.length < 3) return;
     ctx.save();
+
+    const isWater = el.icon === 'mar' || el.icon === 'lago' || el.layerId === 'layer-agua';
+    const isForest = el.icon === 'bosque' || el.icon === 'arbol';
+    const isDesert = el.icon === 'desierto';
+
+    // 1. Trazado suave y relleno principal
     ctx.beginPath();
-    ctx.moveTo(el.points[0].x, el.points[0].y);
-    for (let i = 1; i < el.points.length; i++) {
-      ctx.lineTo(el.points[i].x, el.points[i].y);
-    }
-    ctx.closePath();
+    this.createSmoothPath(ctx, el.points, true);
 
     ctx.fillStyle = el.fillColor || preset.accent;
     ctx.globalAlpha = el.fillOpacity !== undefined ? el.fillOpacity : 0.40;
     ctx.fill();
 
+    // 2. Textura procedural ilustrada interior
+    if (isForest) {
+      this.drawForestCanopyTexture(ctx, el, preset);
+    } else if (isDesert) {
+      this.drawDesertDuneTexture(ctx, el, preset);
+    }
+
+    // 3. Contorno exterior con estilo orgánico
     ctx.globalAlpha = 1.0;
     ctx.strokeStyle = el.strokeColor || el.fillColor || preset.stroke;
     ctx.lineWidth = el.strokeWidth || 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
     if (el.lineDash === 'dashed') ctx.setLineDash([8, 6]);
     else if (el.lineDash === 'dotted') ctx.setLineDash([3, 4]);
+    else ctx.setLineDash([]);
+
+    ctx.beginPath();
+    this.createSmoothPath(ctx, el.points, true);
     ctx.stroke();
 
-    // Rótulo del área en su centroide si está activo
-    if (el.showLabel && el.label) {
-      let cx = 0, cy = 0;
-      el.points.forEach(pt => { cx += pt.x; cy += pt.y; });
-      cx /= el.points.length;
-      cy /= el.points.length;
-      this.drawTextWithHalo(ctx, el.label, cx, cy, el.labelSize || 14, preset.textColor, preset.haloColor, 'center');
+    // 4. Ondas concéntricas litorales (waterlines) para mares y lagos
+    if (isWater) {
+      this.drawCoastlineWaterlines(ctx, el, preset);
     }
+
+    ctx.restore();
+  }
+
+  drawCoastlineWaterlines(ctx, el, preset) {
+    ctx.save();
+    ctx.beginPath();
+    this.createSmoothPath(ctx, el.points, true);
+
+    // Rompiente sutil exterior
+    ctx.strokeStyle = el.strokeColor || preset.waterStroke || '#0284C7';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.35;
+    ctx.stroke();
+
+    // Estela de marea exterior suave
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.15;
+    ctx.stroke();
+
+    ctx.lineWidth = 12;
+    ctx.globalAlpha = 0.06;
+    ctx.setLineDash([14, 12]);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  drawForestCanopyTexture(ctx, el, preset) {
+    ctx.save();
+    ctx.beginPath();
+    this.createSmoothPath(ctx, el.points, true);
+    ctx.clip(); // Limita los símbolos al perímetro orgánico del bosque
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    el.points.forEach(p => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    });
+
+    let seed = 1234567;
+    const idStr = String(el.id || 'forest');
+    for (let i = 0; i < idStr.length; i++) seed = (seed * 31 + idStr.charCodeAt(i)) & 0xffffffff;
+    const rnd = () => {
+      seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+      return (seed >>> 0) / 4294967296;
+    };
+
+    const step = 42;
+    const treeStroke = el.strokeColor || '#064E3B';
+    const treeFill = 'rgba(5, 150, 105, 0.45)';
+
+    ctx.lineWidth = 1.4;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    for (let gy = minY + 15; gy < maxY; gy += step) {
+      const rowOffset = (Math.floor(gy / step) % 2) * (step / 2);
+      for (let gx = minX + 15 + rowOffset; gx < maxX; gx += step) {
+        const jx = gx + (rnd() - 0.5) * 16;
+        const jy = gy + (rnd() - 0.5) * 16;
+        const r = 9 + rnd() * 4;
+
+        // Símbolo vegetal ilustrado (racimo de 3 arcos de copa)
+        ctx.beginPath();
+        ctx.arc(jx, jy - r * 0.35, r * 0.55, Math.PI * 0.8, Math.PI * 0.2);
+        ctx.arc(jx + r * 0.35, jy, r * 0.42, Math.PI * 1.3, Math.PI * 0.4);
+        ctx.arc(jx - r * 0.35, jy, r * 0.42, Math.PI * 0.6, Math.PI * 1.7);
+        ctx.closePath();
+
+        ctx.fillStyle = treeFill;
+        ctx.globalAlpha = 0.35;
+        ctx.fill();
+
+        ctx.strokeStyle = treeStroke;
+        ctx.globalAlpha = 0.60;
+        ctx.stroke();
+
+        // Tronco sutil
+        ctx.beginPath();
+        ctx.moveTo(jx, jy + r * 0.35);
+        ctx.lineTo(jx, jy + r * 0.65);
+        ctx.strokeStyle = '#78350F';
+        ctx.globalAlpha = 0.55;
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
+
+  drawDesertDuneTexture(ctx, el, preset) {
+    ctx.save();
+    ctx.beginPath();
+    this.createSmoothPath(ctx, el.points, true);
+    ctx.clip();
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    el.points.forEach(p => {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    });
+
+    const step = 48;
+    ctx.strokeStyle = el.strokeColor || '#D97706';
+    ctx.lineWidth = 1.2;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = 0.28;
+
+    for (let gy = minY + 20; gy < maxY; gy += step) {
+      const rowOffset = (Math.floor(gy / step) % 2) * 24;
+      for (let gx = minX + 20 + rowOffset; gx < maxX; gx += step * 1.1) {
+        const len = 18;
+        ctx.beginPath();
+        ctx.moveTo(gx - len, gy);
+        ctx.quadraticCurveTo(gx - len * 0.2, gy - 3.5, gx, gy);
+        ctx.quadraticCurveTo(gx + len * 0.4, gy + 3, gx + len, gy);
+        ctx.stroke();
+      }
+    }
+
     ctx.restore();
   }
 
   drawLineElement(ctx, el, preset) {
     if (!el.points || el.points.length < 2) return;
     ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(el.points[0].x, el.points[0].y);
-    for (let i = 1; i < el.points.length; i++) {
-      ctx.lineTo(el.points[i].x, el.points[i].y);
-    }
 
-    ctx.strokeStyle = el.strokeColor || preset.stroke;
-    ctx.lineWidth = el.strokeWidth || 3;
+    const isRiver = el.icon === 'rio';
+    const isRoad = el.icon === 'carretera' || el.icon === 'camino';
+    const isBorder = el.icon === 'frontera';
+
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    if (el.lineDash === 'dashed') ctx.setLineDash([10, 7]);
-    else if (el.lineDash === 'dotted') ctx.setLineDash([4, 4]);
-
-    ctx.stroke();
-
-    // Si es flecha, dibujar punta en el extremo final
-    if (el.icon === 'flecha' && el.points.length >= 2) {
-      const pLast = el.points[el.points.length - 1];
-      const pPrev = el.points[el.points.length - 2];
-      const angle = Math.atan2(pLast.y - pPrev.y, pLast.x - pPrev.x);
-      const headLen = 14;
+    if (isRiver) {
+      // RÍO SERPENTEANTE ILUSTRADO:
+      // Resplandor / ribera suave exterior
+      ctx.lineWidth = (el.strokeWidth || 4.5) + 3;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
       ctx.beginPath();
-      ctx.moveTo(pLast.x, pLast.y);
-      ctx.lineTo(pLast.x - headLen * Math.cos(angle - Math.PI / 6), pLast.y - headLen * Math.sin(angle - Math.PI / 6));
-      ctx.moveTo(pLast.x, pLast.y);
-      ctx.lineTo(pLast.x - headLen * Math.cos(angle + Math.PI / 6), pLast.y - headLen * Math.sin(angle + Math.PI / 6));
+      this.createSmoothPath(ctx, el.points, false);
       ctx.stroke();
+
+      // Cauce de agua fluido principal
+      ctx.strokeStyle = el.strokeColor || '#0284C7';
+      ctx.lineWidth = el.strokeWidth || 4.5;
+      ctx.globalAlpha = 0.90;
+      ctx.beginPath();
+      this.createSmoothPath(ctx, el.points, false);
+      ctx.stroke();
+    } else if (isRoad) {
+      // VÍAS Y CALZADAS (con fondo de halo para legibilidad sobre terrenos)
+      ctx.strokeStyle = preset.bg;
+      ctx.lineWidth = (el.strokeWidth || 3) + 2.5;
+      ctx.beginPath();
+      this.createSmoothPath(ctx, el.points, false);
+      ctx.stroke();
+
+      ctx.strokeStyle = el.strokeColor || '#78716C';
+      ctx.lineWidth = el.strokeWidth || 3;
+      if (el.lineDash === 'dashed') ctx.setLineDash([8, 6]);
+      else if (el.lineDash === 'dotted') ctx.setLineDash([3, 4]);
+
+      ctx.beginPath();
+      this.createSmoothPath(ctx, el.points, false);
+      ctx.stroke();
+    } else if (isBorder) {
+      // FRONTERA NATURAL ILUSTRADA (trazado continuo dash-dot)
+      ctx.strokeStyle = el.strokeColor || '#DC2626';
+      ctx.lineWidth = el.strokeWidth || 2.5;
+      ctx.setLineDash([12, 5, 3, 5]);
+      ctx.globalAlpha = 0.85;
+
+      ctx.beginPath();
+      this.createSmoothPath(ctx, el.points, false);
+      ctx.stroke();
+    } else {
+      // Líneas generales (murallas, flechas, rutas)
+      ctx.strokeStyle = el.strokeColor || preset.stroke;
+      ctx.lineWidth = el.strokeWidth || 3;
+      if (el.lineDash === 'dashed') ctx.setLineDash([10, 7]);
+      else if (el.lineDash === 'dotted') ctx.setLineDash([4, 4]);
+
+      ctx.beginPath();
+      this.createSmoothPath(ctx, el.points, false);
+      ctx.stroke();
+
+      if (el.icon === 'flecha' && el.points.length >= 2) {
+        const pLast = el.points[el.points.length - 1];
+        const pPrev = el.points[el.points.length - 2];
+        const angle = Math.atan2(pLast.y - pPrev.y, pLast.x - pPrev.x);
+        const headLen = 14;
+        ctx.beginPath();
+        ctx.moveTo(pLast.x, pLast.y);
+        ctx.lineTo(pLast.x - headLen * Math.cos(angle - Math.PI / 6), pLast.y - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(pLast.x, pLast.y);
+        ctx.lineTo(pLast.x - headLen * Math.cos(angle + Math.PI / 6), pLast.y - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.stroke();
+      }
     }
 
-    // Rótulo de la línea en punto medio
-    if (el.showLabel && el.label) {
-      const midIdx = Math.floor(el.points.length / 2);
-      const midPt = el.points[midIdx];
-      this.drawTextWithHalo(ctx, el.label, midPt.x, midPt.y - 10, el.labelSize || 12, preset.textColor, preset.haloColor, 'center');
-    }
     ctx.restore();
   }
 
@@ -984,61 +1216,134 @@ export class MapsView {
     ctx.save();
     ctx.translate(x, y);
 
-    // Dibujar símbolo vectorial estilizado según el icono
+    // Dibujado de símbolos con estética de grabado/ilustración editorial
     switch (el.icon) {
-      case 'montana':
+      case 'montana': {
+        const h = size * 0.55;
+        const w = size * 0.52;
+        // Pico y laderas asimétricas naturales
         ctx.beginPath();
-        ctx.moveTo(0, -size / 2);
-        ctx.lineTo(size / 2, size / 2);
-        ctx.lineTo(-size / 2, size / 2);
+        ctx.moveTo(0, -h);
+        ctx.quadraticCurveTo(-w * 0.5, 0, -w, h * 0.7);
+        ctx.quadraticCurveTo(0, h * 0.55, w * 1.05, h * 0.75);
+        ctx.quadraticCurveTo(w * 0.5, 0, 0, -h);
         ctx.closePath();
         ctx.fillStyle = preset.bg;
         ctx.fill();
-        ctx.strokeStyle = el.strokeColor || '#524636';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-        // Cima de nieve
-        ctx.beginPath();
-        ctx.moveTo(0, -size / 2);
-        ctx.lineTo(size / 6, -size / 6);
-        ctx.lineTo(0, -size / 8);
-        ctx.lineTo(-size / 6, -size / 6);
-        ctx.closePath();
-        ctx.fillStyle = el.strokeColor || '#524636';
-        ctx.fill();
-        break;
 
-      case 'colina':
+        // Sombra lateral derecha
         ctx.beginPath();
-        ctx.arc(0, size / 2, size / 2, Math.PI, 0);
+        ctx.moveTo(0, -h);
+        ctx.quadraticCurveTo(w * 0.05, h * 0.1, -w * 0.05, h * 0.65);
+        ctx.quadraticCurveTo(w * 0.5, h * 0.7, w * 1.05, h * 0.75);
+        ctx.quadraticCurveTo(w * 0.5, 0, 0, -h);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(40, 30, 20, 0.12)';
+        ctx.fill();
+
+        // Trazos de sombreado (hatchings de grabado)
+        ctx.strokeStyle = el.strokeColor || '#524636';
+        ctx.lineWidth = 1.2;
+        for (let i = 1; i <= 3; i++) {
+          const hy = -h * 0.3 + (i * h * 0.25);
+          ctx.beginPath();
+          ctx.moveTo(w * 0.08, hy);
+          ctx.lineTo(w * (0.3 + i * 0.15), hy + h * 0.1);
+          ctx.stroke();
+        }
+
+        // Cima nevada ilustrada
+        ctx.beginPath();
+        ctx.moveTo(0, -h);
+        ctx.lineTo(w * 0.22, -h * 0.35);
+        ctx.lineTo(w * 0.05, -h * 0.42);
+        ctx.lineTo(-w * 0.1, -h * 0.38);
+        ctx.lineTo(-w * 0.2, -h * 0.45);
+        ctx.closePath();
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        ctx.strokeStyle = el.strokeColor || '#524636';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        // Contorno principal
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(0, -h);
+        ctx.quadraticCurveTo(-w * 0.5, 0, -w, h * 0.7);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -h);
+        ctx.quadraticCurveTo(w * 0.5, 0, w * 1.05, h * 0.75);
+        ctx.stroke();
+        // Cresta divisoria
+        ctx.beginPath();
+        ctx.moveTo(0, -h);
+        ctx.quadraticCurveTo(w * 0.05, h * 0.1, -w * 0.05, h * 0.65);
+        ctx.stroke();
+        break;
+      }
+
+      case 'colina': {
+        const r = size * 0.48;
+        // Colina trasera
+        ctx.beginPath();
+        ctx.arc(r * 0.35, r * 0.15, r * 0.75, Math.PI * 1.05, Math.PI * 1.95);
         ctx.fillStyle = preset.bg;
         ctx.fill();
         ctx.strokeStyle = el.strokeColor || '#059669';
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Colina delantera
+        ctx.beginPath();
+        ctx.arc(-r * 0.25, r * 0.3, r * 0.85, Math.PI, 0);
+        ctx.fillStyle = preset.bg;
+        ctx.fill();
+        ctx.strokeStyle = el.strokeColor || '#059669';
+        ctx.lineWidth = 2.4;
         ctx.stroke();
         break;
+      }
 
-      case 'volcan':
+      case 'volcan': {
+        const h = size * 0.55;
+        const w = size * 0.55;
         ctx.beginPath();
-        ctx.moveTo(-size / 2, size / 2);
-        ctx.lineTo(-size / 6, -size / 3);
-        ctx.lineTo(size / 6, -size / 3);
-        ctx.lineTo(size / 2, size / 2);
+        ctx.moveTo(-w * 0.22, -h * 0.5);
+        ctx.quadraticCurveTo(-w * 0.5, 0, -w, h * 0.65);
+        ctx.lineTo(w, h * 0.65);
+        ctx.quadraticCurveTo(w * 0.5, 0, w * 0.22, -h * 0.5);
         ctx.closePath();
         ctx.fillStyle = preset.bg;
         ctx.fill();
         ctx.strokeStyle = '#DC2626';
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
-        // Lava en cráter
+
+        // Cráter y lava
         ctx.beginPath();
-        ctx.arc(0, -size / 3, size / 8, 0, Math.PI * 2);
+        ctx.ellipse(0, -h * 0.5, w * 0.22, h * 0.12, 0, 0, Math.PI * 2);
         ctx.fillStyle = '#EF4444';
         ctx.fill();
+        ctx.strokeStyle = '#B91C1C';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Humo / ceniza
+        ctx.beginPath();
+        ctx.moveTo(0, -h * 0.55);
+        ctx.quadraticCurveTo(w * 0.15, -h * 0.8, w * 0.35, -h * 0.95);
+        ctx.quadraticCurveTo(w * 0.5, -h * 1.1, w * 0.4, -h * 1.25);
+        ctx.strokeStyle = 'rgba(120, 113, 108, 0.65)';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
         break;
+      }
 
       case 'arbol':
-      case 'bosque':
+      case 'bosque': {
         ctx.beginPath();
         ctx.moveTo(0, -size / 2);
         ctx.lineTo(size / 3, 0);
@@ -1053,82 +1358,163 @@ export class MapsView {
         ctx.strokeStyle = '#064E3B';
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        // Tronco
         ctx.fillStyle = '#78350F';
         ctx.fillRect(-size / 12, size / 3, size / 6, size / 5);
         break;
+      }
 
-      case 'ciudad':
-        // Triple torreón de ciudad
+      case 'ciudad': {
+        const s = size * 0.48;
+        // Muralla y caserío
         ctx.fillStyle = el.fillColor || '#EEF2FF';
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
-        ctx.strokeRect(-size / 2, -size / 4, size, size / 2);
-        ctx.fillRect(-size / 2, -size / 4, size, size / 2);
-        // Torre central
-        ctx.strokeRect(-size / 5, -size / 2, size / 2.5, size / 4);
-        ctx.fillRect(-size / 5, -size / 2, size / 2.5, size / 4);
-        // Almenas
-        ctx.fillStyle = color;
-        ctx.fillRect(-size / 2, -size / 3, size / 6, size / 8);
-        ctx.fillRect(size / 3, -size / 3, size / 6, size / 8);
-        ctx.fillRect(-size / 10, -size / 1.7, size / 5, size / 8);
-        break;
+        ctx.strokeRect(-s, -s * 0.3, s * 2, s * 1.1);
+        ctx.fillRect(-s, -s * 0.3, s * 2, s * 1.1);
 
-      case 'castillo':
-        ctx.fillStyle = el.fillColor || '#F5F5F4';
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        // Dos torres laterales y puerta central
-        ctx.strokeRect(-size / 2, -size / 2, size / 3.5, size);
-        ctx.strokeRect(size / 2 - size / 3.5, -size / 2, size / 3.5, size);
-        ctx.strokeRect(-size / 4, -size / 6, size / 2, size / 1.5);
+        // Torreón central alto
+        ctx.strokeRect(-s * 0.35, -s * 0.85, s * 0.7, s * 0.6);
+        ctx.fillRect(-s * 0.35, -s * 0.85, s * 0.7, s * 0.6);
         ctx.beginPath();
-        ctx.arc(0, size / 4, size / 8, Math.PI, 0);
+        ctx.moveTo(-s * 0.45, -s * 0.85);
+        ctx.lineTo(0, -s * 1.35);
+        ctx.lineTo(s * 0.45, -s * 0.85);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.stroke();
+
+        // Banderín en la torre
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 1.35);
+        ctx.lineTo(0, -s * 1.6);
+        ctx.lineTo(s * 0.35, -s * 1.48);
+        ctx.lineTo(0, -s * 1.38);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // Portal arqueado
+        ctx.beginPath();
+        ctx.arc(0, s * 0.8, s * 0.25, Math.PI, 0);
         ctx.fillStyle = color;
         ctx.fill();
         break;
+      }
 
-      case 'torre':
+      case 'castillo': {
+        const s = size * 0.48;
         ctx.fillStyle = el.fillColor || '#F5F5F4';
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
-        ctx.strokeRect(-size / 4, -size / 2, size / 2, size);
-        ctx.fillRect(-size / 4, -size / 2, size / 2, size);
-        // Cima / faro
+
+        // Torre izquierda
+        ctx.strokeRect(-s, -s * 0.9, s * 0.55, s * 1.7);
+        ctx.fillRect(-s, -s * 0.9, s * 0.55, s * 1.7);
+        // Torre derecha
+        ctx.strokeRect(s * 0.45, -s * 0.9, s * 0.55, s * 1.7);
+        ctx.fillRect(s * 0.45, -s * 0.9, s * 0.55, s * 1.7);
+
+        // Almenas
+        ctx.fillStyle = color;
+        ctx.fillRect(-s * 0.95, -s * 1.05, s * 0.45, s * 0.2);
+        ctx.fillRect(s * 0.5, -s * 1.05, s * 0.45, s * 0.2);
+
+        // Muralla cortina y puerta levadiza
+        ctx.strokeRect(-s * 0.45, -s * 0.2, s * 0.9, s);
+        ctx.fillRect(-s * 0.45, -s * 0.2, s * 0.9, s);
         ctx.beginPath();
-        ctx.arc(0, -size / 2, size / 5, 0, Math.PI * 2);
+        ctx.arc(0, s * 0.8, s * 0.28, Math.PI, 0);
+        ctx.fillStyle = '#292524';
+        ctx.fill();
+        break;
+      }
+
+      case 'puerto': {
+        const s = size * 0.45;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(-s, s * 0.6);
+        ctx.lineTo(s * 0.8, s * 0.6);
+        ctx.stroke();
+
+        ctx.fillStyle = '#F5F5F4';
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.4, s * 0.6);
+        ctx.lineTo(-s * 0.2, -s * 0.8);
+        ctx.lineTo(0, -s * 0.8);
+        ctx.lineTo(s * 0.2, s * 0.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Linterna
+        ctx.beginPath();
+        ctx.arc(-s * 0.1, -s * 0.85, s * 0.22, 0, Math.PI * 2);
         ctx.fillStyle = '#F59E0B';
         ctx.fill();
         ctx.stroke();
         break;
+      }
 
-      case 'portal':
+      case 'torre': {
+        const s = size * 0.48;
+        ctx.fillStyle = el.fillColor || '#F5F5F4';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+
+        ctx.strokeRect(-s * 0.35, -s * 0.8, s * 0.7, s * 1.6);
+        ctx.fillRect(-s * 0.35, -s * 0.8, s * 0.7, s * 1.6);
+
+        ctx.strokeRect(-s * 0.45, -s * 1.1, s * 0.9, s * 0.35);
+        ctx.fillRect(-s * 0.45, -s * 1.1, s * 0.9, s * 0.35);
+
         ctx.beginPath();
-        ctx.arc(0, 0, size / 2.5, 0, Math.PI * 2);
-        ctx.strokeStyle = '#7C3AED';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(0, 0, size / 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#A78BFA';
+        ctx.arc(0, -s * 1.25, s * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = '#F59E0B';
         ctx.fill();
         break;
+      }
 
-      case 'cueva':
+      case 'portal': {
+        const s = size * 0.45;
         ctx.beginPath();
-        ctx.arc(0, 0, size / 2, Math.PI, 0);
-        ctx.closePath();
-        ctx.fillStyle = '#1C1917';
+        ctx.arc(0, 0, s, 0, Math.PI * 2);
+        ctx.strokeStyle = '#7C3AED';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(167, 139, 250, 0.45)';
+        ctx.fill();
+        ctx.strokeStyle = '#A78BFA';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        break;
+      }
+
+      case 'cueva': {
+        const s = size * 0.48;
+        ctx.beginPath();
+        ctx.arc(0, s * 0.3, s * 0.85, Math.PI, 0);
+        ctx.fillStyle = preset.bg;
         ctx.fill();
         ctx.strokeStyle = '#78716C';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, s * 0.3, s * 0.45, Math.PI, 0);
+        ctx.fillStyle = '#1C1917';
+        ctx.fill();
         break;
+      }
 
       case 'marcador':
-      default:
-        // Pin clásico cartográfico
+      default: {
         ctx.beginPath();
         ctx.arc(0, -size / 4, size / 3, 0, Math.PI * 2);
         ctx.fillStyle = color;
@@ -1144,39 +1530,59 @@ export class MapsView {
         ctx.fillStyle = color;
         ctx.fill();
         break;
+      }
     }
 
     ctx.restore();
-
-    // Rótulo del punto si está activo
-    if (el.showLabel) {
-      const isOrphan = !!el.placeId && !store.getPlace(el.placeId);
-      const labelText = isOrphan ? `${el.label || 'Lugar'} (Eliminado)` : el.label;
-      if (labelText) {
-        const labelY = y + size / 2 + (el.labelSize || 13) + 2;
-        this.drawTextWithHalo(
-          ctx,
-          labelText,
-          x,
-          labelY,
-          el.labelSize || 13,
-          isOrphan ? '#DC2626' : preset.textColor,
-          isOrphan ? 'rgba(254, 226, 226, 0.95)' : preset.haloColor,
-          'center'
-        );
-      }
-    }
   }
 
-  drawTextWithHalo(ctx, text, x, y, size, textColor, haloColor, align = 'center') {
+  drawElementLabel(ctx, el, preset) {
+    if (!el.showLabel || !el.label) return;
+
+    let x = 0, y = 0;
+    const isOrphan = !!el.placeId && !store.getPlace(el.placeId);
+    const labelText = isOrphan ? `${el.label} (Eliminado)` : el.label;
+
+    const isMajorWater = el.icon === 'mar' || el.icon === 'lago' || el.layerId === 'layer-agua';
+    const isMajorForest = el.icon === 'bosque';
+    const isEditorialSerif = isMajorWater || isMajorForest || el.category === 'geografia';
+
+    if (el.type === 'area' && el.points && el.points.length >= 3) {
+      let cx = 0, cy = 0;
+      el.points.forEach(pt => { cx += pt.x; cy += pt.y; });
+      x = cx / el.points.length;
+      y = cy / el.points.length;
+    } else if (el.type === 'line' && el.points && el.points.length >= 2) {
+      const midIdx = Math.floor(el.points.length / 2);
+      const midPt = el.points[midIdx];
+      x = midPt.x;
+      y = midPt.y - 12;
+    } else {
+      x = el.x;
+      const size = el.size || 28;
+      y = el.y + size / 2 + (el.labelSize || 13) + 2;
+    }
+
+    const textColor = isOrphan ? '#DC2626' : (isMajorWater ? (preset.waterStroke || preset.textColor) : preset.textColor);
+    const haloColor = isOrphan ? 'rgba(254, 226, 226, 0.95)' : preset.haloColor;
+    const labelSize = el.labelSize || (isMajorWater ? 16 : 13);
+
+    this.drawTextWithHalo(ctx, labelText, x, y, labelSize, textColor, haloColor, 'center', isEditorialSerif);
+  }
+
+  drawTextWithHalo(ctx, text, x, y, size, textColor, haloColor, align = 'center', isEditorial = false) {
     ctx.save();
-    ctx.font = `600 ${size}px "Plus Jakarta Sans", sans-serif`;
+    if (isEditorial) {
+      ctx.font = `italic 600 ${size}px "Lora", Georgia, serif`;
+    } else {
+      ctx.font = `600 ${size}px "Plus Jakarta Sans", sans-serif`;
+    }
     ctx.textAlign = align;
     ctx.textBaseline = 'middle';
 
     // Halo para contraste óptimo sobre cualquier textura/color
-    ctx.strokeStyle = haloColor || 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = haloColor || 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = 4.5;
     ctx.lineJoin = 'round';
     ctx.strokeText(text, x, y);
 
@@ -2514,7 +2920,7 @@ export class MapsView {
   }
 
   /* ==========================================================================
-     10. GENERADOR PROCEDURAL («GENERAR MUNDO»)
+     10. GENERADOR PROCEDURAL («GENERAR MUNDO» ILUSTRADO Y NATURAL)
      ========================================================================== */
   openWorldGeneratorModal(map, project) {
     let proposalElements = null;
@@ -2545,148 +2951,348 @@ export class MapsView {
       let settlementCount = 0;
       let worldPlaceCount = 0;
 
-      // 1. Mar u Océano costero
+      let coastBayX = Math.round(w * 0.28);
+      let coastBayY = Math.round(h * 0.52);
+
+      // 1. Costa Orgánica Natural y Masas de Agua
       if (hasWater) {
-        const bayY1 = h * (0.2 + random() * 0.1);
-        const bayY2 = h * (0.7 + random() * 0.15);
+        const numCoastPts = 32;
+        const coastPts = [{ x: 0, y: 0 }];
+
+        for (let i = 0; i < numCoastPts; i++) {
+          const t = i / (numCoastPts - 1);
+          const baseY = t * h;
+          // Curvatura continental amplia con golfo/bahía en el centro
+          const mainCurvature = Math.sin(t * Math.PI) * (w * 0.08);
+          const bayIndentation = Math.sin(t * Math.PI * 2 + 0.6) * (w * 0.07);
+          const coastalJitter = (Math.sin(t * 14) * 14 + Math.cos(t * 26) * 8 + (random() - 0.5) * 18);
+          const coastX = Math.round(w * 0.25 + mainCurvature + bayIndentation + coastalJitter);
+
+          if (i === Math.floor(numCoastPts * 0.52)) {
+            coastBayX = coastX;
+            coastBayY = Math.round(baseY);
+          }
+          coastPts.push({ x: coastX, y: Math.round(baseY) });
+        }
+
+        coastPts.push({ x: 0, y: h });
+
         elements.push({
           id: 'gen-ocean',
           type: 'area',
           layerId: 'layer-agua',
-          points: [
-            { x: 0, y: 0 },
-            { x: Math.round(w * (0.22 + random() * 0.08)), y: 0 },
-            { x: Math.round(w * (0.28 + random() * 0.08)), y: Math.round(bayY1) },
-            { x: Math.round(w * (0.22 + random() * 0.06)), y: Math.round(bayY2) },
-            { x: Math.round(w * (0.3 + random() * 0.08)), y: h },
-            { x: 0, y: h }
-          ],
+          points: coastPts,
           icon: 'mar',
-          label: 'Mar Océano',
+          label: 'Mar Occidental',
           showLabel: true,
-          labelSize: 18,
+          labelSize: 20,
           strokeColor: '#0284C7',
           strokeWidth: 3,
           fillColor: '#38BDF8',
           fillOpacity: 0.45
         });
         waterCount++;
+
+        // Pequeño archipiélago costero natural (2 islas orgánicas mar adentro)
+        const numIslands = density === 'low' ? 1 : 2;
+        for (let isl = 0; isl < numIslands; isl++) {
+          const islCx = Math.round(coastBayX - 170 - (isl * 70));
+          const islCy = Math.round(coastBayY - 50 + (isl * 160));
+          const islRad = 35 + random() * 20;
+          const islPts = [];
+          const islVertexCount = 10;
+          for (let vi = 0; vi < islVertexCount; vi++) {
+            const ang = (vi / islVertexCount) * Math.PI * 2;
+            const r = islRad * (0.8 + 0.3 * Math.sin(ang * 3) + (random() - 0.5) * 0.25);
+            islPts.push({ x: Math.round(islCx + Math.cos(ang) * r), y: Math.round(islCy + Math.sin(ang) * r) });
+          }
+          elements.push({
+            id: `gen-island-${isl}`,
+            type: 'area',
+            layerId: 'layer-terreno',
+            points: islPts,
+            icon: 'bosque',
+            label: isl === 0 ? 'Isla de la Bruma' : 'Cayo Vigía',
+            showLabel: true,
+            labelSize: 12,
+            strokeColor: '#059669',
+            strokeWidth: 2,
+            fillColor: '#10B981',
+            fillOpacity: 0.40
+          });
+        }
       }
 
-      // 2. Cadenas montañosas
+      // 2. Cadenas Montañosas Orgánicas (con estribaciones y puertos de montaña)
       const mountainPeaks = [];
-      if (hasMountains) {
-        const count = density === 'low' ? 5 : density === 'high' ? 12 : 8;
-        const startX = w * (0.45 + random() * 0.1);
-        const startY = h * 0.15;
-        const endX = w * (0.7 + random() * 0.15);
-        const endY = h * 0.85;
+      let passMountain = null;
 
-        for (let i = 0; i < count; i++) {
-          const t = i / (count - 1);
-          const curveOffset = Math.sin(t * Math.PI) * (w * 0.12 * (random() - 0.5));
-          const mx = startX + t * (endX - startX) + curveOffset;
-          const my = startY + t * (endY - startY) + (random() - 0.5) * 60;
+      if (hasMountains) {
+        const spineCount = density === 'low' ? 9 : density === 'high' ? 20 : 14;
+        const startX = w * (0.55 + random() * 0.08);
+        const startY = h * 0.12;
+        const endX = w * (0.78 + random() * 0.10);
+        const endY = h * 0.88;
+
+        for (let i = 0; i < spineCount; i++) {
+          const t = i / (spineCount - 1);
+          // Curva sinusoidal orgánica de la dorsal montañosa
+          const spineCurve = Math.sin(t * Math.PI) * (w * 0.10 * (random() > 0.5 ? 1 : -1));
+          const mx = startX + t * (endX - startX) + spineCurve + (random() - 0.5) * 45;
+          const my = startY + t * (endY - startY) + (random() - 0.5) * 45;
+
+          // Dejar paso natural en 55% de la cordillera para el paso de montaña
+          const isPass = (i === Math.floor(spineCount * 0.55));
+          if (isPass) {
+            passMountain = { x: Math.round(mx), y: Math.round(my) };
+            continue; // Brecha de relieve natural
+          }
+
+          const isVolcano = (i === Math.floor(spineCount * 0.25));
+          const peakSize = Math.round(30 + random() * 18);
+
           const peak = {
             id: `gen-mnt-${i}`,
             type: 'point',
             layerId: 'layer-terreno',
             x: Math.round(mx),
             y: Math.round(my),
-            icon: i === Math.floor(count / 2) ? 'volcan' : 'montana',
-            size: Math.round(32 + random() * 14),
-            label: i === 0 ? 'Picos del Norte' : i === count - 1 ? 'Espolón Boreal' : '',
-            showLabel: true,
+            icon: isVolcano ? 'volcan' : 'montana',
+            size: peakSize,
+            label: i === 0 ? 'Picos del Alba' : (i === spineCount - 1 ? 'Espolón Boreal' : (isVolcano ? 'Pico Ígneo' : '')),
+            showLabel: i === 0 || i === spineCount - 1 || isVolcano,
             color: '#78716C'
           };
           elements.push(peak);
           mountainPeaks.push(peak);
           mountainCount++;
+
+          // Añadir estribaciones / colinas en los flancos de la cordillera
+          if (i % 3 === 0 && random() > 0.3) {
+            const hillOffset = (random() > 0.5 ? 1 : -1) * (50 + random() * 40);
+            elements.push({
+              id: `gen-hill-${i}`,
+              type: 'point',
+              layerId: 'layer-terreno',
+              x: Math.round(mx + hillOffset),
+              y: Math.round(my + (random() - 0.5) * 30),
+              icon: 'colina',
+              size: Math.round(24 + random() * 10),
+              label: '',
+              showLabel: false,
+              color: '#059669'
+            });
+            mountainCount++;
+          }
         }
       }
 
-      // 3. Río natural que desciende de las montañas al mar
+      // 3. Río Principal y Afluente Natural Serpenteante
+      let riverConfluence = { x: Math.round(w * 0.44), y: Math.round(h * 0.48) };
+
       if (hasWater && mountainPeaks.length > 0) {
-        const originMnt = mountainPeaks[Math.floor(mountainPeaks.length / 2)];
+        // El río nace en el macizo montañoso central
+        const originMnt = mountainPeaks[Math.floor(mountainPeaks.length * 0.4)] || mountainPeaks[0];
+        const riverPts = [{ x: originMnt.x - 10, y: originMnt.y }];
+
+        const numRiverSegments = 24;
+        const targetX = coastBayX + 15;
+        const targetY = coastBayY;
+
+        for (let r = 1; r < numRiverSegments; r++) {
+          const t = r / (numRiverSegments - 1);
+          const lx = originMnt.x + t * (targetX - originMnt.x);
+          const ly = originMnt.y + t * (targetY - originMnt.y);
+          // Serpenteo fluido perpendicular
+          const meander = Math.sin(t * Math.PI * 4.5) * 36 + (Math.sin(t * Math.PI * 9) * 14) + (random() - 0.5) * 12;
+          const rx = Math.round(lx);
+          const ry = Math.round(ly + meander);
+
+          if (r === Math.floor(numRiverSegments * 0.55)) {
+            riverConfluence = { x: rx, y: ry };
+          }
+          riverPts.push({ x: rx, y: ry });
+        }
+
         elements.push({
-          id: 'gen-river',
+          id: 'gen-river-main',
           type: 'line',
           layerId: 'layer-agua',
-          points: [
-            { x: originMnt.x, y: originMnt.y },
-            { x: Math.round(originMnt.x - w * 0.1), y: Math.round(originMnt.y + h * 0.05) },
-            { x: Math.round(originMnt.x - w * 0.22), y: Math.round(originMnt.y + h * 0.02) },
-            { x: Math.round(w * 0.24), y: Math.round(originMnt.y + h * 0.08) }
-          ],
+          points: riverPts,
           icon: 'rio',
-          label: 'Río Principal',
+          label: 'Río Dorado',
           showLabel: true,
+          labelSize: 13,
           strokeColor: '#0284C7',
-          strokeWidth: 5
+          strokeWidth: 4.5
+        });
+        waterCount++;
+
+        // Afluente secundario que nace en otra ladera y desemboca en la confluencia
+        const tribOrigin = mountainPeaks[0] || originMnt;
+        const tribPts = [{ x: tribOrigin.x - 15, y: tribOrigin.y + 20 }];
+        const numTribPts = 12;
+
+        for (let tr = 1; tr < numTribPts; tr++) {
+          const t = tr / (numTribPts - 1);
+          const tx = tribOrigin.x + t * (riverConfluence.x - tribOrigin.x);
+          const ty = (tribOrigin.y + 20) + t * (riverConfluence.y - (tribOrigin.y + 20));
+          const tMeander = Math.sin(t * Math.PI * 3) * 22 + (random() - 0.5) * 10;
+          tribPts.push({ x: Math.round(tx), y: Math.round(ty + tMeander) });
+        }
+
+        elements.push({
+          id: 'gen-river-trib',
+          type: 'line',
+          layerId: 'layer-agua',
+          points: tribPts,
+          icon: 'rio',
+          label: 'Ribera de Plata',
+          showLabel: false,
+          strokeColor: '#0284C7',
+          strokeWidth: 3
         });
         waterCount++;
       }
 
-      // 4. Bosques orgánicos
+      // 4. Masas Forestales Orgánicas con Lóbulos Naturales
       const numForests = density === 'low' ? 1 : density === 'high' ? 3 : 2;
       for (let f = 0; f < numForests; f++) {
-        const fcX = w * (0.6 + (f * 0.15) * (random() - 0.5));
-        const fcY = h * (0.4 + f * 0.25);
-        const rad = 180 + random() * 100;
+        const fcX = f === 0 ? w * 0.44 : w * 0.65;
+        const fcY = f === 0 ? h * 0.32 : h * 0.68;
+        const baseRad = 150 + random() * 70;
         const pts = [];
-        const numPts = 7;
+        const numPts = 18;
+
         for (let p = 0; p < numPts; p++) {
           const ang = (p / numPts) * Math.PI * 2;
-          const r = rad * (0.8 + random() * 0.4);
+          // Contorno multilobular orgánico
+          const r = baseRad * (0.82 + 0.28 * Math.sin(ang * 3 + f) + 0.14 * Math.cos(ang * 5) + (random() - 0.5) * 0.2);
           pts.push({ x: Math.round(fcX + Math.cos(ang) * r), y: Math.round(fcY + Math.sin(ang) * r) });
         }
+
         elements.push({
           id: `gen-forest-${f}`,
           type: 'area',
           layerId: 'layer-terreno',
           points: pts,
-          icon: 'arbol',
-          label: f === 0 ? 'Gran Bosque' : 'Arboleda Silente',
+          icon: 'bosque',
+          label: f === 0 ? 'Gran Bosque de los Susurros' : 'Selva Esmeralda',
           showLabel: true,
+          labelSize: 14,
           fillColor: '#10B981',
           strokeColor: '#059669',
-          fillOpacity: 0.40
+          fillOpacity: 0.38
         });
         forestCount++;
       }
 
-      // 5. Asentamientos
+      // 5. Asentamientos Estratégicos y Red de Calzadas
+      let capitalPos = { x: Math.round(riverConfluence.x + 40), y: Math.round(riverConfluence.y - 30) };
+      let portPos = { x: Math.round(coastBayX + 35), y: Math.round(coastBayY - 20) };
+
       if (hasSettlements) {
-        const cityCount = density === 'low' ? 2 : density === 'high' ? 5 : 3;
-        for (let c = 0; c < cityCount; c++) {
+        // Ciudad Capital en el valle fértil
+        elements.push({
+          id: 'gen-city-capital',
+          type: 'point',
+          layerId: 'layer-lugares',
+          x: capitalPos.x,
+          y: capitalPos.y,
+          icon: 'ciudad',
+          size: 42,
+          label: 'Ciudad Capital de Oakhaven',
+          showLabel: true,
+          color: '#4F46E5'
+        });
+        settlementCount++;
+
+        // Puerto en la bahía marítima
+        elements.push({
+          id: 'gen-city-port',
+          type: 'point',
+          layerId: 'layer-lugares',
+          x: portPos.x,
+          y: portPos.y,
+          icon: 'puerto',
+          size: 36,
+          label: 'Puerto de la Marea',
+          showLabel: true,
+          color: '#0891B2'
+        });
+        settlementCount++;
+
+        // Bastión o Castillo en el paso de montaña
+        if (passMountain) {
           elements.push({
-            id: `gen-settle-${c}`,
+            id: 'gen-castle-pass',
             type: 'point',
             layerId: 'layer-lugares',
-            x: Math.round(w * (0.35 + random() * 0.4)),
-            y: Math.round(h * (0.25 + random() * 0.5)),
-            icon: c === 0 ? 'ciudad' : c === 1 ? 'castillo' : 'torre',
-            size: 36,
-            label: c === 0 ? 'Ciudad Capital' : c === 1 ? 'Fortaleza Alta' : 'Bastión de Guardia',
+            x: passMountain.x,
+            y: passMountain.y,
+            icon: 'castillo',
+            size: 38,
+            label: 'Bastión del Paso Alto',
             showLabel: true,
-            color: '#4F46E5'
+            color: '#B45309'
           });
           settlementCount++;
         }
+
+        // Torre vigía costera
+        elements.push({
+          id: 'gen-tower-coast',
+          type: 'point',
+          layerId: 'layer-lugares',
+          x: Math.round(coastBayX - 25),
+          y: Math.round(coastBayY + 180),
+          icon: 'torre',
+          size: 32,
+          label: 'Atalaya Austral',
+          showLabel: true,
+          color: '#D97706'
+        });
+        settlementCount++;
+
+        // Calzada Real conectando la Capital con el Puerto
+        elements.push({
+          id: 'gen-road-king',
+          type: 'line',
+          layerId: 'layer-infra',
+          points: [
+            { x: capitalPos.x, y: capitalPos.y },
+            { x: Math.round((capitalPos.x + portPos.x) / 2), y: Math.round((capitalPos.y + portPos.y) / 2 + 25) },
+            { x: portPos.x, y: portPos.y }
+          ],
+          icon: 'carretera',
+          label: 'Camino Real',
+          showLabel: false,
+          strokeColor: '#78716C',
+          strokeWidth: 3.5,
+          lineDash: 'dashed'
+        });
       }
 
       // 6. Colocar lugares existentes de Mundo si se solicitó
       if (includeWorldPlaces) {
         const unplaced = store.getPlaces(project.id).filter(p => !(map.elements || []).some(el => el.placeId === p.id));
         unplaced.forEach((p, idx) => {
+          const px = Math.round(w * (0.38 + ((idx * 0.17) % 0.42)));
+          const py = Math.round(h * (0.28 + ((idx * 0.21) % 0.48)));
+
+          let icon = 'marcador';
+          if (p.category === 'asentamientos') icon = p.type === 'castillo' ? 'castillo' : (p.type === 'puerto' ? 'puerto' : 'ciudad');
+          else if (p.category === 'naturaleza') icon = p.type === 'montana' ? 'montana' : (p.type === 'bosque' ? 'arbol' : 'cueva');
+          else if (p.category === 'especiales') icon = 'portal';
+
           elements.push({
             id: `gen-world-${p.id}`,
             placeId: p.id,
             type: 'point',
             layerId: 'layer-lugares',
-            x: Math.round(w * (0.3 + (idx * 0.12) % 0.5)),
-            y: Math.round(h * (0.3 + (idx * 0.15) % 0.5)),
-            icon: p.category === 'asentamientos' ? 'ciudad' : p.category === 'especiales' ? 'portal' : 'marcador',
+            x: px,
+            y: py,
+            icon,
             size: 36,
             label: p.name,
             showLabel: true,
@@ -2700,8 +3306,8 @@ export class MapsView {
       const prevEl = modalEl.querySelector('#gen-summary-text');
       if (prevEl) {
         prevEl.innerHTML = `
-          <strong>Propuesta generada:</strong> ${elements.length} elementos calculados (${mountainCount} picos, ${waterCount} aguas, ${forestCount} bosques, ${settlementCount} asentamientos${worldPlaceCount > 0 ? `, ${worldPlaceCount} lugares de Mundo` : ''}).<br>
-          <span style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; display:inline-block;">El mapa no se modificará hasta pulsar «Aplicar al Mapa».</span>
+          <strong>Propuesta generada:</strong> ${elements.length} elementos cartográficos calculados (${mountainCount} accidentes de relieve, ${waterCount} masas y ríos, ${forestCount} bosques ilustrados, ${settlementCount} asentamientos${worldPlaceCount > 0 ? `, ${worldPlaceCount} lugares de Mundo` : ''}).<br>
+          <span style="font-size:0.75rem; color:var(--text-muted); margin-top:3px; display:inline-block;">El mapa permanecerá intacto hasta que pulses «Aplicar al Mapa».</span>
         `;
       }
     };
@@ -2709,7 +3315,7 @@ export class MapsView {
     const contentHtml = `
       <div style="display:flex; flex-direction:column; gap:var(--space-md);">
         <p style="font-size:0.875rem; color:var(--text-secondary); margin:0;">
-          Genera una distribución geográfica heurística basada en cordilleras plausibles, cuencas fluviales, costas y bosques.
+          Genera una cartografía ilustrada con costas orgánicas, ríos serpenteantes, cordilleras asimétricas y masas forestales con textura vegetal.
         </p>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-md);">
@@ -2734,41 +3340,41 @@ export class MapsView {
           </div>
         </div>
 
-        <div style="display:flex; flex-direction:column; gap:6px; background:var(--bg-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-subtle);">
-          <div style="display:flex; align-items:center; gap:8px;">
+        <div class="map-modal-card">
+          <div class="map-modal-check-row">
             <input type="checkbox" id="gen-mountains" checked />
-            <label for="gen-mountains" style="font-size:0.8125rem; font-weight:600; cursor:pointer;">Cordilleras y relieve montañoso</label>
+            <label for="gen-mountains" class="map-modal-check-label">Cordilleras y relieve ilustrado con sombreado</label>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div class="map-modal-check-row">
             <input type="checkbox" id="gen-water" checked />
-            <label for="gen-water" style="font-size:0.8125rem; font-weight:600; cursor:pointer;">Masas de agua (Costa marina y cuenca fluvial)</label>
+            <label for="gen-water" class="map-modal-check-label">Costas orgánicas, waterlines y ríos serpenteantes</label>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div class="map-modal-check-row">
             <input type="checkbox" id="gen-settlements" checked />
-            <label for="gen-settlements" style="font-size:0.8125rem; font-weight:600; cursor:pointer;">Asentamientos y ciudades estratégicas</label>
+            <label for="gen-settlements" class="map-modal-check-label">Ciudades, puertos, bastiones y calzadas reales</label>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
+          <div class="map-modal-check-row">
             <input type="checkbox" id="gen-world-places" checked />
-            <label for="gen-world-places" style="font-size:0.8125rem; font-weight:600; cursor:pointer;">Ubicar lugares existentes de Mundo que falten</label>
+            <label for="gen-world-places" class="map-modal-check-label">Situar lugares existentes de Mundo que falten</label>
           </div>
         </div>
 
         <div class="form-group" style="margin:0;">
           <label class="form-label">Modo de Aplicación</label>
           <div style="display:flex; gap:16px; font-size:0.8125rem;">
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <label class="map-modal-check-row">
               <input type="radio" name="gen-mode" value="append" checked />
-              <span>Añadir a los elementos existentes</span>
+              <span class="map-modal-check-label">Añadir a los elementos existentes</span>
             </label>
-            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <label class="map-modal-check-row">
               <input type="radio" name="gen-mode" value="replace" />
-              <span>Reemplazar mapa actual</span>
+              <span class="map-modal-check-label">Reemplazar mapa actual</span>
             </label>
           </div>
         </div>
 
-        <div id="gen-summary-text" style="font-size:0.8125rem; color:var(--text-secondary); background:var(--bg-surface); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); line-height:1.4;">
-          Calculando propuesta temporal...
+        <div id="gen-summary-text" class="map-modal-summary">
+          Calculando propuesta ilustrada...
         </div>
 
         <button type="button" class="btn btn-secondary btn-sm" id="btn-regen-proposal" style="width:100%;">
@@ -2902,7 +3508,7 @@ export class MapsView {
       if (summaryEl) {
         summaryEl.innerHTML = `
           <strong>Propuesta calculada:</strong> ${placeElems.length} lugares reubicados usando distribución <em>${patternLabels[pattern] || pattern}</em>.<br>
-          <span style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; display:inline-block;">Tus lugares en Mundo permanecerán intactos; solo se actualizan sus coordenadas en este mapa.</span>
+          <span style="font-size:0.75rem; color:var(--text-muted); margin-top:3px; display:inline-block;">Tus lugares en Mundo permanecerán intactos; solo se actualizan sus coordenadas en este mapa.</span>
         `;
       }
     };
@@ -2933,7 +3539,7 @@ export class MapsView {
           </div>
         </div>
 
-        <div id="reorg-summary-text" style="font-size:0.8125rem; color:var(--text-secondary); background:var(--bg-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); line-height:1.4;">
+        <div id="reorg-summary-text" class="map-modal-summary">
           Calculando propuesta de reorganización...
         </div>
 

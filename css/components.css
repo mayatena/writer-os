@@ -130,7 +130,9 @@
 
 .form-input,
 .form-textarea,
-.form-select {
+.form-select,
+.input,
+.textarea {
   width: 100%;
   padding: 9px 13px;
   border-radius: var(--radius-md);
@@ -144,12 +146,37 @@
 
 .form-input:focus,
 .form-textarea:focus,
-.form-select:focus {
+.form-select:focus,
+.input:focus,
+.textarea:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
-.form-textarea {
+select.input option,
+.form-select option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] .form-input,
+:root[data-theme="dark"] .form-textarea,
+:root[data-theme="dark"] .form-select,
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] .textarea {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+:root[data-theme="dark"] select.input option,
+:root[data-theme="dark"] .form-select option {
+  background-color: #21242C;
+  color: #EDEBE6;
+}
+
+.form-textarea,
+.textarea {
   min-height: 90px;
   resize: vertical;
   line-height: 1.5;

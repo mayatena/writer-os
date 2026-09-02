@@ -624,3 +624,71 @@
   background-color: var(--bg-surface-elevated);
   border-color: var(--border-strong);
 }
+
+/* ==========================================================================
+   8. MODALES DE GENERACIÓN Y REORGANIZACIÓN (ALTO CONTRASTE CLARO/OSCURO)
+   ========================================================================== */
+.map-modal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: var(--bg-subtle);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+:root[data-theme="dark"] .map-modal-card {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-subtle);
+}
+
+.map-modal-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.map-modal-check-row input[type="checkbox"],
+.map-modal-check-row input[type="radio"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.map-modal-check-row label,
+.map-modal-check-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.map-modal-summary {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background-color: var(--bg-surface);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+:root[data-theme="dark"] .map-modal-summary {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.map-modal-summary strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.map-modal-summary span {
+  color: var(--text-muted);
+}
