@@ -65,6 +65,14 @@ class Store {
         const samplePlacesCount = (this.data.places || []).filter(p => p.projectId === 'proj-susurro-sombras').length;
         if (this.data.projects.some(p => p.id === 'proj-susurro-sombras') && samplePlacesCount === 0) {
           this.restoreSampleWorldData('proj-susurro-sombras');
+        } else {
+          // Asegurar color diferenciado para lugares de infraestructura guardados previamente
+          (this.data.places || []).forEach(p => {
+            if (p.category === 'infraestructura' && (p.color === '#D97706' || p.color === '#B45309')) {
+              p.color = '#0891B2';
+              if (p.mapData) p.mapData.color = '#0891B2';
+            }
+          });
         }
       } else {
         // Inicializar con datos de muestra solo en instalación limpia

@@ -900,8 +900,8 @@ export const sampleProjectData = {
         transitStatus: 'Vigilada por retenes del Velo',
         controlGroupOrEntity: 'Orden del Velo'
       },
-      mapData: { x: 355, y: 348, color: '#D97706' },
-      color: '#D97706',
+      mapData: { x: 355, y: 348, color: '#0891B2' },
+      color: '#0891B2',
       notes: 'Dotada de farolas de gas de carbón que apenas alumbran diez metros a la redonda.',
       createdAt: '2026-08-16T17:30:00.000Z',
       updatedAt: '2026-09-02T17:00:00.000Z'

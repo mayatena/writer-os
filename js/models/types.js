@@ -346,7 +346,7 @@ export function createPlace({
     geografia: '#B45309',
     asentamientos: '#4F46E5',
     naturaleza: '#059669',
-    infraestructura: '#D97706',
+    infraestructura: '#0891B2',
     especiales: '#7C3AED'
   };
 
