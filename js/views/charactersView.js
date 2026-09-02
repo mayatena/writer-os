@@ -309,6 +309,8 @@ export class CharactersView {
             <label class="form-label" for="char-tags">Etiquetas (separadas por comas)</label>
             <input type="text" id="char-tags" class="form-input" value="${character && character.tags ? character.tags.join(', ') : ''}" placeholder="Ej: erudita, custodia, resistencia" />
           </div>
+
+          ${isEditing ? this.renderCharacterRelationsBlock(character, projectId) : ''}
         </form>
       `,
       confirmText: isEditing ? 'Guardar cambios' : 'Crear personaje',
@@ -329,6 +331,34 @@ export class CharactersView {
         updateColorBorders();
         modalEl.querySelectorAll('input[name="char-color"]').forEach(input => {
           input.addEventListener('change', updateColorBorders);
+        });
+
+        // Botón añadir relación desde ficha de personaje
+        modalEl.querySelector('#btn-char-add-rel')?.addEventListener('click', () => {
+          modal.close();
+          this.app.navigate('relationships', projectId);
+          setTimeout(() => {
+            this.app.views.relationships.openRelationshipModal(null, projectId, { sourceId: character.id });
+          }, 150);
+        });
+
+        // Clic en entidad vinculada
+        modalEl.querySelectorAll('.char-modal-rel-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const entId = item.getAttribute('data-entity-id');
+            const entType = item.getAttribute('data-entity-type');
+            modal.close();
+            if (entType === 'character') {
+              const targetChar = store.getCharacter(entId);
+              if (targetChar) this.openCharacterModal(targetChar, projectId);
+            } else if (entType === 'group') {
+              this.app.navigate('relationships', projectId);
+              setTimeout(() => {
+                const grp = store.getGroup(entId);
+                if (grp) this.app.views.relationships.openGroupModal(grp, projectId);
+              }, 150);
+            }
+          });
         });
       },
       onConfirm: (modalEl) => {
@@ -375,4 +405,56 @@ export class CharactersView {
       }
     });
   }
+
+  renderCharacterRelationsBlock(character, projectId) {
+    const rels = store.getCharacterRelationships(character.id, projectId);
+    const groups = rels.filter(r => r.otherEntity && r.otherEntity.type === 'group');
+    const family = rels.filter(r => r.relationship.category === 'familiar');
+    const loveAndSocial = rels.filter(r => r.relationship.category === 'afectiva' || r.relationship.category === 'social');
+    const politics = rels.filter(r => r.relationship.category === 'politica');
+
+    return `
+      <div style="margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border-subtle);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">
+            Vínculos, Familia y Casas (${rels.length})
+          </span>
+          <button type="button" class="btn btn-subtle btn-sm" id="btn-char-add-rel" style="padding: 2px 8px; font-size: 0.75rem;">
+            + Vincular relación
+          </button>
+        </div>
+
+        ${rels.length === 0 ? `
+          <div style="font-size: 0.8125rem; color: var(--text-muted); font-style: italic;">
+            Este personaje aún no tiene vínculos registrados. Pulsa en <strong>+ Vincular relación</strong> para añadir familia, aliados o facciones.
+          </div>
+        ` : `
+          <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+            ${rels.map(r => {
+              const ent = r.otherEntity;
+              if (!ent) return '';
+              const isGrp = ent.type === 'group';
+              return `
+                <div class="card card-clickable char-modal-rel-item" data-entity-id="${ent.id}" data-entity-type="${ent.type}" style="padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 22px; height: 22px; border-radius: ${isGrp ? '4px' : '50%'}; background-color: ${ent.color}; color: #FFF; font-size: 0.6875rem; font-weight: bold; display: flex; align-items: center; justify-content: center;">
+                      ${ent.name.charAt(0)}
+                    </div>
+                    <div>
+                      <strong>${ent.name}</strong>
+                      <span style="color: var(--text-muted); margin-left: 4px; font-size: 0.75rem;">(${r.myRole || r.relationship.type})</span>
+                    </div>
+                  </div>
+                  <span class="cat-badge cat-${r.relationship.category}" style="font-size: 0.625rem;">
+                    ${r.relationship.type}
+                  </span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  }
 }
+

@@ -19,6 +19,7 @@ export class OverviewView {
     const chapters = store.getChapters(project.id);
     const characters = store.getCharacters(project.id);
     const notes = store.getNotes(project.id);
+    const groups = store.getGroups(project.id);
 
     // Calcular progreso respecto al objetivo
     const targetWords = project.targetWordCount || 50000;
@@ -60,28 +61,40 @@ export class OverviewView {
         </div>
 
         <!-- Fila de Estadísticas Clave -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl);">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl);">
           <div class="card" style="padding: var(--space-md);">
-            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Palabras Totales</span>
-            <div style="font-size: 1.8rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Palabras</span>
+            <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
               ${stats.totalWords.toLocaleString('es-ES')}
             </div>
           </div>
           <div class="card" style="padding: var(--space-md);">
             <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Capítulos</span>
-            <div style="font-size: 1.8rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
+            <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
               ${stats.totalChapters}
             </div>
           </div>
           <div class="card" style="padding: var(--space-md);">
             <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Personajes</span>
-            <div style="font-size: 1.8rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
+            <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
               ${stats.totalCharacters}
             </div>
           </div>
           <div class="card" style="padding: var(--space-md);">
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Casas y Grupos</span>
+            <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
+              ${stats.totalGroups || 0}
+            </div>
+          </div>
+          <div class="card" style="padding: var(--space-md);">
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Relaciones</span>
+            <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
+              ${stats.totalRelationships || 0}
+            </div>
+          </div>
+          <div class="card" style="padding: var(--space-md);">
             <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Notas de Ideas</span>
-            <div style="font-size: 1.8rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
+            <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
               ${stats.totalNotes}
             </div>
           </div>
@@ -198,6 +211,34 @@ export class OverviewView {
               </div>
             </div>
 
+            <!-- Casas y Facciones Nobiliarias -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                <h2 style="font-size: 1.15rem; font-family: var(--font-serif);">Casas y Organizaciones</h2>
+                <button class="btn btn-subtle btn-sm" id="btn-view-all-relationships">Ver relaciones</button>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                ${groups.length === 0 ? `
+                  <div class="card" style="padding: var(--space-md); text-align: center; color: var(--text-muted); font-size: 0.8125rem;">
+                    No hay casas u organizaciones registradas.
+                  </div>
+                ` : groups.slice(0, 3).map(g => `
+                  <div class="card card-clickable group-quick-row" data-group-id="${g.id}" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="width: 26px; height: 26px; border-radius: 4px; background-color: ${g.color || '#4F46E5'}; color: #FFF; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold;">
+                        ${g.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style="font-size: 0.875rem; font-weight: 600;">${g.name}</div>
+                        <div style="font-size: 0.6875rem; color: var(--text-muted); font-style: italic;">${g.motto || g.type}</div>
+                      </div>
+                    </div>
+                    <span class="badge" style="font-size: 0.625rem;">${g.type}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -276,6 +317,18 @@ export class OverviewView {
       row.addEventListener('click', () => {
         const noteId = row.getAttribute('data-note-id');
         this.app.navigate('notes', project.id, { noteId: noteId });
+      });
+    });
+
+    // Ver todas las relaciones
+    container.querySelector('#btn-view-all-relationships')?.addEventListener('click', () => {
+      this.app.navigate('relationships', project.id);
+    });
+
+    // Clic en grupo rápido
+    container.querySelectorAll('.group-quick-row').forEach(row => {
+      row.addEventListener('click', () => {
+        this.app.navigate('relationships', project.id, { mode: 'structured' });
       });
     });
   }

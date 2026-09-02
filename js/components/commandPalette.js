@@ -196,6 +196,60 @@ class CommandPalette {
         });
       }
 
+      // Resultados en Casas y Organizaciones
+      if (results.groups && results.groups.length > 0) {
+        html += `<div class="palette-group-title">Casas y Organizaciones</div>`;
+        results.groups.forEach(g => {
+          const itemIndex = this.items.length;
+          this.items.push({
+            type: 'group',
+            action: () => {
+              if (this.onActionCallback) {
+                this.onActionCallback('open-group', { projectId: g.projectId, groupId: g.id });
+              }
+            }
+          });
+          html += `
+            <div class="palette-item ${itemIndex === this.selectedIndex ? 'is-selected' : ''}" data-index="${itemIndex}">
+              <div class="palette-item-left">
+                <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                <span>${g.name} ${g.motto ? `— <em>"${g.motto}"</em>` : ''}</span>
+              </div>
+              <span class="palette-item-badge">Organización</span>
+            </div>
+          `;
+        });
+      }
+
+      // Resultados en Relaciones
+      if (results.relationships && results.relationships.length > 0) {
+        html += `<div class="palette-group-title">Relaciones y Vínculos</div>`;
+        results.relationships.forEach(r => {
+          const itemIndex = this.items.length;
+          const src = store.getEntity(r.sourceId);
+          const tgt = store.getEntity(r.targetId);
+          if (!src || !tgt) return;
+
+          this.items.push({
+            type: 'relationship',
+            action: () => {
+              if (this.onActionCallback) {
+                this.onActionCallback('navigate', { view: 'relationships', projectId: r.projectId });
+              }
+            }
+          });
+          html += `
+            <div class="palette-item ${itemIndex === this.selectedIndex ? 'is-selected' : ''}" data-index="${itemIndex}">
+              <div class="palette-item-left">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                <span>${src.name} ${r.isSymmetric ? '↔' : '➔'} ${tgt.name} (${r.type})</span>
+              </div>
+              <span class="palette-item-badge">${r.category}</span>
+            </div>
+          `;
+        });
+      }
+
       // Resultados en Proyectos
       if (results.projects.length > 0) {
         html += `<div class="palette-group-title">Proyectos</div>`;
@@ -254,6 +308,18 @@ class CommandPalette {
         action: () => this.onActionCallback?.('create-note')
       });
       actions.push({
+        title: 'Crear nueva relación',
+        badge: 'Acción',
+        icon: '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>',
+        action: () => this.onActionCallback?.('create-relationship')
+      });
+      actions.push({
+        title: 'Crear nueva casa u organización',
+        badge: 'Acción',
+        icon: '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>',
+        action: () => this.onActionCallback?.('create-group')
+      });
+      actions.push({
         title: 'Ir a Escribir',
         badge: 'Navegación',
         icon: '<path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle>',
@@ -270,6 +336,12 @@ class CommandPalette {
         badge: 'Navegación',
         icon: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
         action: () => this.onActionCallback?.('navigate', { view: 'characters' })
+      });
+      actions.push({
+        title: 'Ir a Relaciones y Estructuras',
+        badge: 'Navegación',
+        icon: '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>',
+        action: () => this.onActionCallback?.('navigate', { view: 'relationships' })
       });
       actions.push({
         title: 'Ir a Notas',

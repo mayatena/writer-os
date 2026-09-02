@@ -107,6 +107,76 @@ export function createCharacter({
 }
 
 /**
+ * Fábrica de Grupo / Organización Narrativa / Casa Noble / Dinastía
+ */
+export function createGroup({
+  projectId,
+  name = 'Nueva Organización',
+  type = 'casa_noble',
+  description = '',
+  motto = '',
+  color = '#4F46E5',
+  founderId = null,
+  leaderId = null
+} = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: generateId(),
+    projectId,
+    name: name.trim() || 'Sin nombre',
+    type: type || 'casa_noble', // 'casa_noble' | 'dinastia' | 'clan' | 'faccion' | 'gremio' | 'culto' | 'ejercito' | 'otro'
+    description: description.trim(),
+    motto: motto.trim(),
+    color: color || '#4F46E5',
+    founderId: founderId || null,
+    leaderId: leaderId || null,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+/**
+ * Fábrica de Relación
+ */
+export function createRelationship({
+  projectId,
+  sourceId,
+  sourceType = 'character',
+  targetId,
+  targetType = 'character',
+  category = 'social',
+  type = 'amistad',
+  roleSource = '',
+  roleTarget = '',
+  isSymmetric = true,
+  status = 'activa',
+  description = '',
+  startDate = '',
+  endDate = ''
+} = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: generateId(),
+    projectId,
+    sourceId,
+    sourceType: sourceType || 'character', // 'character' | 'group'
+    targetId,
+    targetType: targetType || 'character', // 'character' | 'group'
+    category: category || 'social', // 'familiar' | 'afectiva' | 'social' | 'politica' | 'pertenencia'
+    type: type || 'amistad',
+    roleSource: roleSource.trim(),
+    roleTarget: roleTarget.trim(),
+    isSymmetric: Boolean(isSymmetric),
+    status: status || 'activa', // 'activa' | 'pasada' | 'conflictiva' | 'secreta' | 'prometidos' | 'divorciados' | 'viudedad' | 'disidente'
+    description: description.trim(),
+    startDate: startDate.trim(),
+    endDate: endDate.trim(),
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+/**
  * Fábrica de Nota Creativa
  */
 export function createNote({

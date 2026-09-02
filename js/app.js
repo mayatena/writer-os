@@ -9,11 +9,12 @@ import { ProjectsView } from './views/projectsView.js';
 import { OverviewView } from './views/overviewView.js';
 import { EditorView } from './views/editorView.js';
 import { CharactersView } from './views/charactersView.js';
+import { RelationshipsView } from './views/relationshipsView.js';
 import { NotesView } from './views/notesView.js';
 
 class App {
   constructor() {
-    this.currentView = 'projects'; // 'projects' | 'overview' | 'editor' | 'characters' | 'notes'
+    this.currentView = 'projects'; // 'projects' | 'overview' | 'editor' | 'characters' | 'relationships' | 'notes'
     this.viewParams = {};
 
     this.views = {
@@ -21,6 +22,7 @@ class App {
       overview: new OverviewView(this),
       editor: new EditorView(this),
       characters: new CharactersView(this),
+      relationships: new RelationshipsView(this),
       notes: new NotesView(this)
     };
 
@@ -65,6 +67,7 @@ class App {
         resumen: 'overview',
         escribir: 'editor',
         personajes: 'characters',
+        relaciones: 'relationships',
         notas: 'notes'
       };
 
@@ -72,7 +75,10 @@ class App {
       this.viewParams = {
         chapterId: parts[3] || null,
         characterId: parts[3] || null,
-        noteId: parts[3] || null
+        charId: parts[3] || null,
+        noteId: parts[3] || null,
+        relId: parts[3] || null,
+        mode: parts[4] || null
       };
     }
 
@@ -96,6 +102,7 @@ class App {
       overview: 'resumen',
       editor: 'escribir',
       characters: 'personajes',
+      relationships: 'relaciones',
       notes: 'notas'
     };
 
@@ -166,6 +173,10 @@ class App {
             <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             <span>Personajes</span>
           </button>
+          <button class="nav-tab ${this.currentView === 'relationships' ? 'is-active' : ''}" data-nav="relationships">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+            <span>Relaciones</span>
+          </button>
           <button class="nav-tab ${this.currentView === 'notes' ? 'is-active' : ''}" data-nav="notes">
             <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
             <span>Notas</span>
@@ -226,6 +237,12 @@ class App {
       this.navigate('characters', payload.projectId, { characterId: payload.characterId });
     } else if (action === 'open-note') {
       this.navigate('notes', payload.projectId, { noteId: payload.noteId });
+    } else if (action === 'open-group') {
+      this.navigate('relationships', payload.projectId);
+      setTimeout(() => {
+        const grp = store.getGroup(payload.groupId);
+        if (grp) this.views.relationships.openGroupModal(grp, payload.projectId);
+      }, 150);
     } else if (action === 'create-chapter') {
       if (activeProject) {
         const chapters = store.getChapters(activeProject.id);
@@ -241,6 +258,16 @@ class App {
       if (activeProject) {
         this.navigate('characters', activeProject.id);
         setTimeout(() => this.views.characters.openCharacterModal(null, activeProject.id), 150);
+      }
+    } else if (action === 'create-relationship') {
+      if (activeProject) {
+        this.navigate('relationships', activeProject.id);
+        setTimeout(() => this.views.relationships.openRelationshipModal(null, activeProject.id), 150);
+      }
+    } else if (action === 'create-group') {
+      if (activeProject) {
+        this.navigate('relationships', activeProject.id);
+        setTimeout(() => this.views.relationships.openGroupModal(null, activeProject.id), 150);
       }
     } else if (action === 'create-note') {
       if (activeProject) {

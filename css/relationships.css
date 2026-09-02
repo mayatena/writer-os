@@ -1,0 +1,432 @@
+/* Writer OS — Estilos del Sistema de Relaciones, Familias y Casas */
+
+/* ==========================================================================
+   Contenedor Principal de Relaciones
+   ========================================================================== */
+.relationships-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.subnav-modes {
+  display: inline-flex;
+  background-color: var(--bg-subtle);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  gap: 4px;
+}
+
+.subnav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.subnav-btn:hover {
+  color: var(--text-primary);
+}
+
+.subnav-btn.is-active {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   Badges de Categorías de Relación
+   ========================================================================== */
+.cat-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cat-familiar {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
+}
+:root[data-theme="dark"] .cat-familiar {
+  background-color: #38240D;
+  color: #FCD34D;
+  border-color: #784E07;
+}
+
+.cat-afectiva {
+  background-color: #FCE7F3;
+  color: #9D174D;
+  border: 1px solid #FBCFE8;
+}
+:root[data-theme="dark"] .cat-afectiva {
+  background-color: #391122;
+  color: #F472B6;
+  border-color: #831843;
+}
+
+.cat-social {
+  background-color: #D1FAE5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+:root[data-theme="dark"] .cat-social {
+  background-color: #062D20;
+  color: #34D399;
+  border-color: #065F46;
+}
+
+.cat-politica {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+}
+:root[data-theme="dark"] .cat-politica {
+  background-color: #112247;
+  color: #60A5FA;
+  border-color: #1D4ED8;
+}
+
+.cat-pertenencia {
+  background-color: #EDE9FE;
+  color: #5B21B6;
+  border: 1px solid #DDD6FE;
+}
+:root[data-theme="dark"] .cat-pertenencia {
+  background-color: #27144D;
+  color: #A78BFA;
+  border-color: #5B21B6;
+}
+
+/* ==========================================================================
+   Tarjetas de Relación
+   ========================================================================== */
+.relationship-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  background-color: var(--bg-surface);
+  transition: all var(--transition-fast);
+}
+
+.relationship-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.relationship-entities {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.rel-entity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.rel-entity:hover .rel-entity-name {
+  color: var(--accent);
+}
+
+.rel-entity-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.rel-entity-avatar.is-group {
+  border-radius: var(--radius-sm);
+}
+
+.rel-entity-info {
+  min-width: 0;
+}
+
+.rel-entity-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--transition-fast);
+}
+
+.rel-entity-role {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rel-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rel-connector-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: bold;
+}
+
+.rel-dates-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  background-color: var(--bg-subtle);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* ==========================================================================
+   Tarjetas de Casas y Organizaciones
+   ========================================================================== */
+.group-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  background-color: var(--bg-surface);
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.group-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.group-card-header {
+  margin-bottom: var(--space-md);
+}
+
+.group-card-motto {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+}
+
+.group-members-preview {
+  margin-top: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.group-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-subtle);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.group-member-row:hover {
+  background-color: var(--bg-hover);
+}
+
+/* ==========================================================================
+   Visualizador de Red (Canvas / Grafo)
+   ========================================================================== */
+.network-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.network-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+.network-canvas:active {
+  cursor: grabbing;
+}
+
+.network-controls {
+  position: absolute;
+  top: var(--space-md);
+  left: var(--space-md);
+  display: flex;
+  gap: 6px;
+  background-color: var(--bg-surface-elevated);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-subtle);
+  z-index: 5;
+}
+
+.network-legend {
+  position: absolute;
+  bottom: var(--space-md);
+  left: var(--space-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  background-color: var(--bg-surface-elevated);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+  z-index: 5;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.network-details-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  background-color: var(--bg-surface-elevated);
+  border-left: 1px solid var(--border-subtle);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  z-index: 10;
+  transform: translateX(100%);
+  transition: transform var(--transition-normal);
+}
+
+.network-details-panel.is-open {
+  transform: translateX(0);
+}
+
+/* ==========================================================================
+   Vista de Linaje y Árbol Familiar
+   ========================================================================== */
+.lineage-wrapper {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2xl);
+  min-height: 520px;
+}
+
+.lineage-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.lineage-level-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.lineage-nodes-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  position: relative;
+}
+
+.lineage-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.lineage-node:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.lineage-node.is-target {
+  background-color: var(--accent-subtle);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.lineage-branch-connector {
+  width: 2px;
+  height: 28px;
+  background-color: var(--border-strong);
+}

@@ -29,8 +29,17 @@
   - Sinopsis y notas de escena del capítulo activo.
   - Personajes presentes en la escena: vincular/desvincular con un clic y consultar la ficha completa sin perder el hilo de escritura.
   - Consulta rápida de notas creativas del proyecto.
+- **Sistema de Relaciones, Familias, Linajes y Casas**:
+  - **Tres modos de visualización**:
+    - **Estructurada**: Directorio de relaciones con filtros por categoría (Familia, Afectivas, Sociales, Políticas, Pertenencia) y gestión de Casas y Grupos.
+    - **Red de Conexiones**: Visualizador interactivo de grafo en Canvas HTML5 con nodos arrastrables, distinción cromática por categorías y panel lateral de detalles.
+    - **Linaje y Familia**: Árbol genealógico generacional multinivel (ancestros, generación central con hermanos y cónyuges, y descendientes) con recentrado interactivo.
+  - **Estructuras Sociales y Casas Nobiliarias**: Soporte para casas nobles, dinastías, clanes, facciones políticas, gremios y cultos con lemas heráldicos, líderes y miembros.
+  - **Relaciones Tipadas y Direccionales**: Soporte para reciprocidad simétrica (↔) o dirigida (➔), roles específicos en origen/destino, fechas de inicio y fin, y estados (activa, conflictiva, secreta, pasada).
+  - **Integración profunda**: Vínculos visibles desde la ficha de cada personaje y búsqueda instantánea desde la paleta de comandos (`Ctrl + K`).
 - **Directorio de Personajes**:
   - Fichas completas: Nombre, Alias, Rol narrativo (Protagonista, Antagonista, Secundario, Otro), color distintivo, descripción física/psicológica, secretos/trasfondo y etiquetas.
+  - Bloque integrado de relaciones directas con acceso rápido para añadir nuevos vínculos o saltar a las entidades relacionadas.
   - Filtro por roles y buscador en tiempo real.
   - Indicador de presencia ("Presente en X capítulos").
 - **Cuaderno de Notas e Ideas**:
@@ -38,7 +47,8 @@
   - Buscador en tiempo real por título o texto.
 - **Búsqueda Global y Paleta de Comandos (`Ctrl + K`)**:
   - Acceso instantáneo con el teclado mediante `Ctrl + K`.
-  - Navegación rápida y ejecución de comandos directos (crear capítulo, personaje, nota, saltar entre secciones, cambiar tema).
+  - Búsqueda en vivo en capítulos, personajes, casas, organizaciones, notas y proyectos.
+  - Navegación rápida y ejecución de comandos directos (crear capítulo, personaje, relación, casa u organización, cambiar de sección, alternar tema).
 - **Diseño Editorial y Temas**:
   - **Modo Claro (Papel Crema)**: Inspirado en páginas editoriales cálidas.
   - **Modo Oscuro (Tinta Nocturna)**: Diseñado para sesiones de escritura nocturnas sin fatiga visual.

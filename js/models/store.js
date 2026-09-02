@@ -1,7 +1,7 @@
 /* Writer OS — Almacén Central Reactivo y Persistencia */
 
 import { sampleProjectData } from './sampleData.js';
-import { countWords, createProject, createChapter, createCharacter, createNote } from './types.js';
+import { countWords, createProject, createChapter, createCharacter, createNote, createGroup, createRelationship } from './types.js';
 
 const STORAGE_KEY = 'writer_os_storage_v1';
 const ACTIVE_PROJECT_KEY = 'writer_os_active_project_id';
@@ -14,7 +14,9 @@ class Store {
       projects: [],
       chapters: [],
       characters: [],
-      notes: []
+      notes: [],
+      groups: [],
+      relationships: []
     };
     this.activeProjectId = null;
     this.theme = 'light';
@@ -35,7 +37,33 @@ class Store {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        this.data = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        this.data = {
+          projects: parsed.projects || [],
+          chapters: parsed.chapters || [],
+          characters: parsed.characters || [],
+          notes: parsed.notes || [],
+          groups: parsed.groups || [],
+          relationships: parsed.relationships || []
+        };
+
+        // Migración suave: si el proyecto de muestra ya existe pero no tiene grupos/relaciones
+        const sampleProj = this.data.projects.find(p => p.id === 'proj-susurro-sombras');
+        if (sampleProj) {
+          const sampleGroups = this.data.groups.filter(g => g.projectId === 'proj-susurro-sombras');
+          if (sampleGroups.length === 0 && sampleProjectData.groups) {
+            this.data.groups.push(...sampleProjectData.groups);
+          }
+          const sampleRels = this.data.relationships.filter(r => r.projectId === 'proj-susurro-sombras');
+          if (sampleRels.length === 0 && sampleProjectData.relationships) {
+            this.data.relationships.push(...sampleProjectData.relationships);
+          }
+          // Añadir personaje Silvia Thorne si no está en la muestra anterior
+          if (!this.data.characters.some(c => c.id === 'char-silvia')) {
+            const silvia = sampleProjectData.characters.find(c => c.id === 'char-silvia');
+            if (silvia) this.data.characters.push(silvia);
+          }
+        }
       } else {
         // Inicializar con datos de muestra la primera vez
         this.loadSampleData();
@@ -59,7 +87,9 @@ class Store {
       projects: [sampleProjectData.project],
       chapters: [...sampleProjectData.chapters],
       characters: [...sampleProjectData.characters],
-      notes: [...sampleProjectData.notes]
+      notes: [...sampleProjectData.notes],
+      groups: [...(sampleProjectData.groups || [])],
+      relationships: [...(sampleProjectData.relationships || [])]
     };
     this.save();
   }
@@ -169,6 +199,8 @@ class Store {
     this.data.chapters = this.data.chapters.filter(c => c.projectId !== id);
     this.data.characters = this.data.characters.filter(ch => ch.projectId !== id);
     this.data.notes = this.data.notes.filter(n => n.projectId !== id);
+    this.data.groups = (this.data.groups || []).filter(g => g.projectId !== id);
+    this.data.relationships = (this.data.relationships || []).filter(r => r.projectId !== id);
 
     if (this.activeProjectId === id) {
       this.activeProjectId = this.data.projects.length > 0 ? this.data.projects[0].id : null;
@@ -206,7 +238,6 @@ class Store {
     });
     this.data.chapters.push(chapter);
 
-    // Actualizar fecha del proyecto
     this.touchProject(projectId);
     this.save();
     return chapter;
@@ -249,7 +280,6 @@ class Store {
     const projectId = chapter.projectId;
     this.data.chapters = this.data.chapters.filter(c => c.id !== id);
 
-    // Reordenar índices
     const remaining = this.getChapters(projectId);
     remaining.forEach((chap, idx) => {
       chap.order = idx;
@@ -303,26 +333,240 @@ class Store {
       }
     });
 
+    // Eliminar relaciones vinculadas al personaje
+    this.data.relationships = (this.data.relationships || []).filter(
+      r => r.sourceId !== id && r.targetId !== id
+    );
+
     this.touchProject(projectId);
     this.save();
+  }
+
+  /* ==========================================================================
+     Grupos / Organizaciones / Casas Nobles / Dinastías
+     ========================================================================== */
+  getGroups(projectId = this.activeProjectId) {
+    return (this.data.groups || [])
+      .filter(g => g.projectId === projectId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }
+
+  getGroup(id) {
+    return (this.data.groups || []).find(g => g.id === id) || null;
+  }
+
+  createGroup(params) {
+    const projectId = params.projectId || this.activeProjectId;
+    const group = createGroup({ ...params, projectId });
+    if (!this.data.groups) this.data.groups = [];
+    this.data.groups.push(group);
+    this.touchProject(projectId);
+    this.save();
+    return group;
+  }
+
+  updateGroup(id, patch) {
+    const group = this.getGroup(id);
+    if (!group) return null;
+    Object.assign(group, patch, { updatedAt: new Date().toISOString() });
+    this.touchProject(group.projectId);
+    this.save();
+    return group;
+  }
+
+  deleteGroup(id) {
+    const group = this.getGroup(id);
+    if (!group) return;
+    const projectId = group.projectId;
+    this.data.groups = (this.data.groups || []).filter(g => g.id !== id);
+
+    // Eliminar relaciones vinculadas a la organización
+    this.data.relationships = (this.data.relationships || []).filter(
+      r => r.sourceId !== id && r.targetId !== id
+    );
+
+    this.touchProject(projectId);
+    this.save();
+  }
+
+  /* ==========================================================================
+     Relaciones
+     ========================================================================== */
+  getRelationships(projectId = this.activeProjectId) {
+    return (this.data.relationships || [])
+      .filter(r => r.projectId === projectId)
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  }
+
+  getRelationship(id) {
+    return (this.data.relationships || []).find(r => r.id === id) || null;
+  }
+
+  createRelationship(params) {
+    const projectId = params.projectId || this.activeProjectId;
+    const relationship = createRelationship({ ...params, projectId });
+    if (!this.data.relationships) this.data.relationships = [];
+    this.data.relationships.push(relationship);
+    this.touchProject(projectId);
+    this.save();
+    return relationship;
+  }
+
+  updateRelationship(id, patch) {
+    const rel = this.getRelationship(id);
+    if (!rel) return null;
+    Object.assign(rel, patch, { updatedAt: new Date().toISOString() });
+    this.touchProject(rel.projectId);
+    this.save();
+    return rel;
+  }
+
+  deleteRelationship(id) {
+    const rel = this.getRelationship(id);
+    if (!rel) return;
+    const projectId = rel.projectId;
+    this.data.relationships = (this.data.relationships || []).filter(r => r.id !== id);
+    this.touchProject(projectId);
+    this.save();
+  }
+
+  /* Consultas especializadas de relaciones */
+  getEntity(id) {
+    const char = this.getCharacter(id);
+    if (char) {
+      return {
+        id: char.id,
+        name: char.name,
+        subtitle: char.alias || char.role,
+        color: char.avatarColor || '#B45309',
+        type: 'character',
+        original: char
+      };
+    }
+    const group = this.getGroup(id);
+    if (group) {
+      return {
+        id: group.id,
+        name: group.name,
+        subtitle: group.motto || group.type,
+        color: group.color || '#4F46E5',
+        type: 'group',
+        original: group
+      };
+    }
+    return null;
+  }
+
+  getCharacterRelationships(charId, projectId = this.activeProjectId) {
+    const allRels = this.getRelationships(projectId);
+    return allRels.filter(r => r.sourceId === charId || r.targetId === charId).map(rel => {
+      const isSource = rel.sourceId === charId;
+      const otherId = isSource ? rel.targetId : rel.sourceId;
+      const otherEntity = this.getEntity(otherId);
+      const myRole = isSource ? rel.roleSource : (rel.isSymmetric ? rel.roleSource : rel.roleTarget);
+      const otherRole = isSource ? (rel.isSymmetric ? rel.roleSource : rel.roleTarget) : rel.roleSource;
+
+      return {
+        relationship: rel,
+        otherEntity,
+        isSource,
+        myRole: myRole || rel.type,
+        otherRole: otherRole || rel.type
+      };
+    });
+  }
+
+  getCharacterFamily(charId, projectId = this.activeProjectId) {
+    const rels = this.getRelationships(projectId).filter(r => r.category === 'familiar');
+    const parents = [];
+    const children = [];
+    const siblings = [];
+    const spouses = [];
+    const others = [];
+
+    // También buscar relaciones afectivas de tipo matrimonio/pareja
+    const loveRels = this.getRelationships(projectId).filter(
+      r => r.category === 'afectiva' && (r.type === 'pareja' || r.type === 'matrimonio')
+    );
+
+    loveRels.forEach(r => {
+      if (r.sourceId === charId || r.targetId === charId) {
+        const otherId = r.sourceId === charId ? r.targetId : r.sourceId;
+        const other = this.getCharacter(otherId);
+        if (other && !spouses.some(s => s.character.id === other.id)) {
+          spouses.push({ character: other, relationship: r });
+        }
+      }
+    });
+
+    rels.forEach(r => {
+      const isSource = r.sourceId === charId;
+      const isTarget = r.targetId === charId;
+      if (!isSource && !isTarget) return;
+
+      const otherId = isSource ? r.targetId : r.sourceId;
+      const other = this.getCharacter(otherId);
+      if (!other) return;
+
+      if (r.type === 'hermanos') {
+        if (!siblings.some(s => s.character.id === other.id)) {
+          siblings.push({ character: other, relationship: r });
+        }
+      } else if (r.type === 'progenitor_descendiente' || r.type === 'adopcion') {
+        if (isSource) {
+          // Yo soy el progenitor, el otro es mi descendiente/hijo
+          if (!children.some(c => c.character.id === other.id)) {
+            children.push({ character: other, relationship: r });
+          }
+        } else {
+          // Yo soy el descendiente, el otro es mi progenitor/padre/madre
+          if (!parents.some(p => p.character.id === other.id)) {
+            parents.push({ character: other, relationship: r });
+          }
+        }
+      } else {
+        if (!others.some(o => o.character.id === other.id)) {
+          others.push({ character: other, relationship: r });
+        }
+      }
+    });
+
+    return { parents, children, siblings, spouses, others };
+  }
+
+  getGroupMembers(groupId, projectId = this.activeProjectId) {
+    const rels = this.getRelationships(projectId).filter(
+      r => r.category === 'pertenencia' && (r.targetId === groupId || r.sourceId === groupId)
+    );
+
+    return rels.map(r => {
+      const charId = r.targetId === groupId ? r.sourceId : r.targetId;
+      const character = this.getCharacter(charId);
+      return {
+        character,
+        role: r.roleSource || 'Miembro',
+        relationship: r
+      };
+    }).filter(m => m.character !== null);
   }
 
   /* ==========================================================================
      Notas
      ========================================================================== */
   getNotes(projectId = this.activeProjectId) {
-    return this.data.notes
+    return (this.data.notes || [])
       .filter(n => n.projectId === projectId)
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   }
 
   getNote(id) {
-    return this.data.notes.find(n => n.id === id) || null;
+    return (this.data.notes || []).find(n => n.id === id) || null;
   }
 
   createNote(params) {
     const projectId = params.projectId || this.activeProjectId;
     const note = createNote({ ...params, projectId });
+    if (!this.data.notes) this.data.notes = [];
     this.data.notes.push(note);
     this.touchProject(projectId);
     this.save();
@@ -342,7 +586,7 @@ class Store {
     const note = this.getNote(id);
     if (!note) return;
     const projectId = note.projectId;
-    this.data.notes = this.data.notes.filter(n => n.id !== id);
+    this.data.notes = (this.data.notes || []).filter(n => n.id !== id);
     this.touchProject(projectId);
     this.save();
   }
@@ -353,19 +597,23 @@ class Store {
   getProjectStats(projectId = this.activeProjectId) {
     const project = this.getProject(projectId);
     if (!project) {
-      return { totalWords: 0, totalChapters: 0, totalCharacters: 0, totalNotes: 0 };
+      return { totalWords: 0, totalChapters: 0, totalCharacters: 0, totalNotes: 0, totalGroups: 0, totalRelationships: 0 };
     }
     const chapters = this.getChapters(projectId);
     const totalWords = chapters.reduce((sum, ch) => sum + countWords(ch.content), 0);
     const totalChapters = chapters.length;
     const totalCharacters = this.getCharacters(projectId).length;
     const totalNotes = this.getNotes(projectId).length;
+    const totalGroups = this.getGroups(projectId).length;
+    const totalRelationships = this.getRelationships(projectId).length;
 
     return {
       totalWords,
       totalChapters,
       totalCharacters,
       totalNotes,
+      totalGroups,
+      totalRelationships,
       lastModified: project.updatedAt
     };
   }
@@ -381,7 +629,9 @@ class Store {
      Búsqueda Global
      ========================================================================== */
   search(query) {
-    if (!query || query.trim().length === 0) return { projects: [], chapters: [], characters: [], notes: [] };
+    if (!query || query.trim().length === 0) {
+      return { projects: [], chapters: [], characters: [], notes: [], groups: [], relationships: [] };
+    }
     const q = query.toLowerCase().trim();
 
     const projects = this.data.projects.filter(p =>
@@ -391,7 +641,7 @@ class Store {
 
     const activeId = this.activeProjectId;
 
-    const chapters = this.data.chapters
+    const chapters = (this.data.chapters || [])
       .filter(c => !activeId || c.projectId === activeId)
       .filter(c =>
         c.title.toLowerCase().includes(q) ||
@@ -399,7 +649,7 @@ class Store {
         (c.content && c.content.toLowerCase().includes(q))
       );
 
-    const characters = this.data.characters
+    const characters = (this.data.characters || [])
       .filter(c => !activeId || c.projectId === activeId)
       .filter(c =>
         c.name.toLowerCase().includes(q) ||
@@ -409,7 +659,7 @@ class Store {
         (c.tags && c.tags.some(t => t.toLowerCase().includes(q)))
       );
 
-    const notes = this.data.notes
+    const notes = (this.data.notes || [])
       .filter(n => !activeId || n.projectId === activeId)
       .filter(n =>
         n.title.toLowerCase().includes(q) ||
@@ -417,7 +667,32 @@ class Store {
         (n.tags && n.tags.some(t => t.toLowerCase().includes(q)))
       );
 
-    return { projects, chapters, characters, notes };
+    const groups = (this.data.groups || [])
+      .filter(g => !activeId || g.projectId === activeId)
+      .filter(g =>
+        g.name.toLowerCase().includes(q) ||
+        (g.motto && g.motto.toLowerCase().includes(q)) ||
+        (g.description && g.description.toLowerCase().includes(q)) ||
+        g.type.toLowerCase().includes(q)
+      );
+
+    const relationships = (this.data.relationships || [])
+      .filter(r => !activeId || r.projectId === activeId)
+      .filter(r => {
+        const source = this.getEntity(r.sourceId);
+        const target = this.getEntity(r.targetId);
+        return (
+          (source && source.name.toLowerCase().includes(q)) ||
+          (target && target.name.toLowerCase().includes(q)) ||
+          (r.description && r.description.toLowerCase().includes(q)) ||
+          (r.roleSource && r.roleSource.toLowerCase().includes(q)) ||
+          (r.roleTarget && r.roleTarget.toLowerCase().includes(q)) ||
+          r.type.toLowerCase().includes(q) ||
+          r.category.toLowerCase().includes(q)
+        );
+      });
+
+    return { projects, chapters, characters, notes, groups, relationships };
   }
 
   /* ==========================================================================
@@ -435,7 +710,9 @@ class Store {
           projects: parsed.projects || [],
           chapters: parsed.chapters || [],
           characters: parsed.characters || [],
-          notes: parsed.notes || []
+          notes: parsed.notes || [],
+          groups: parsed.groups || [],
+          relationships: parsed.relationships || []
         };
         if (this.data.projects.length > 0) {
           this.activeProjectId = this.data.projects[0].id;
