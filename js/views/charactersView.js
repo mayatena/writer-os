@@ -1,6 +1,7 @@
 /* Writer OS — Vista de Personajes */
 
 import { store } from '../models/store.js';
+import { escapeHtml } from '../models/types.js';
 import { modal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
 
@@ -434,19 +435,23 @@ export class CharactersView {
               const ent = r.otherEntity;
               if (!ent) return '';
               const isGrp = ent.type === 'group';
+              const roleLabel = isGrp
+                ? (r.myRole || r.otherRole || r.relationship.type)
+                : (r.otherRole || r.relationship.type);
+
               return `
-                <div class="card card-clickable char-modal-rel-item" data-entity-id="${ent.id}" data-entity-type="${ent.type}" style="padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem;">
+                <div class="card card-clickable char-modal-rel-item" data-entity-id="${escapeHtml(ent.id)}" data-entity-type="${escapeHtml(ent.type)}" style="padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem;">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="width: 22px; height: 22px; border-radius: ${isGrp ? '4px' : '50%'}; background-color: ${ent.color}; color: #FFF; font-size: 0.6875rem; font-weight: bold; display: flex; align-items: center; justify-content: center;">
-                      ${ent.name.charAt(0)}
+                    <div style="width: 22px; height: 22px; border-radius: ${isGrp ? '4px' : '50%'}; background-color: ${escapeHtml(ent.color)}; color: #FFF; font-size: 0.6875rem; font-weight: bold; display: flex; align-items: center; justify-content: center;">
+                      ${escapeHtml(ent.name.charAt(0))}
                     </div>
                     <div>
-                      <strong>${ent.name}</strong>
-                      <span style="color: var(--text-muted); margin-left: 4px; font-size: 0.75rem;">(${r.myRole || r.relationship.type})</span>
+                      <strong>${escapeHtml(ent.name)}</strong>
+                      <span style="color: var(--text-muted); margin-left: 4px; font-size: 0.75rem;">(${escapeHtml(roleLabel)})</span>
                     </div>
                   </div>
-                  <span class="cat-badge cat-${r.relationship.category}" style="font-size: 0.625rem;">
-                    ${r.relationship.type}
+                  <span class="cat-badge cat-${escapeHtml(r.relationship.category)}" style="font-size: 0.625rem;">
+                    ${escapeHtml(r.relationship.type)}
                   </span>
                 </div>
               `;

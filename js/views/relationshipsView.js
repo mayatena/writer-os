@@ -1,6 +1,7 @@
 /* Writer OS — Vista de Relaciones, Familias y Casas Nobiliarias */
 
 import { store } from '../models/store.js';
+import { escapeHtml } from '../models/types.js';
 import { modal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
 
@@ -18,7 +19,8 @@ export class RelationshipsView {
     this.draggedNode = null;
     this.selectedNode = null;
     this.canvasOffset = { x: 0, y: 0 };
-    this.animFrameId = null;
+    this._onWindowMouseMove = null;
+    this._onWindowMouseUp = null;
   }
 
   render(container, params = {}) {
@@ -29,10 +31,20 @@ export class RelationshipsView {
     }
 
     if (params.mode) {
-      this.currentMode = params.mode;
+      const modeMap = {
+        estructurada: 'structured',
+        structured: 'structured',
+        red: 'network',
+        network: 'network',
+        linaje: 'lineage',
+        lineage: 'lineage'
+      };
+      this.currentMode = modeMap[params.mode.toLowerCase()] || this.currentMode;
     }
-    if (params.charId) {
-      this.selectedLineageCharId = params.charId;
+
+    const charFocusId = params.charId || params.characterId;
+    if (charFocusId && store.getCharacter(charFocusId)) {
+      this.selectedLineageCharId = charFocusId;
     }
 
     const allRelationships = store.getRelationships(project.id);
@@ -42,6 +54,9 @@ export class RelationshipsView {
     if (!this.selectedLineageCharId && allCharacters.length > 0) {
       this.selectedLineageCharId = allCharacters[0].id;
     }
+
+    // Desvincular eventos globales de canvas previos si existieran
+    this.teardownCanvasListeners();
 
     container.innerHTML = `
       <div class="view-container">
@@ -102,6 +117,17 @@ export class RelationshipsView {
     }
   }
 
+  teardownCanvasListeners() {
+    if (this._onWindowMouseMove) {
+      window.removeEventListener('mousemove', this._onWindowMouseMove);
+      this._onWindowMouseMove = null;
+    }
+    if (this._onWindowMouseUp) {
+      window.removeEventListener('mouseup', this._onWindowMouseUp);
+      this._onWindowMouseUp = null;
+    }
+  }
+
   renderModeContent(project) {
     if (this.currentMode === 'network') {
       return this.renderNetworkMode(project);
@@ -144,8 +170,8 @@ export class RelationshipsView {
               type="text"
               class="form-input"
               id="rel-search-input"
-              placeholder="Buscar por personaje, casa o motivo..."
-              value="${this.searchQuery}"
+              placeholder="Buscar por personaje, casa, rol o motivo..."
+              value="${escapeHtml(this.searchQuery)}"
               style="padding: 7px 12px; font-size: 0.875rem;"
             />
           </div>
@@ -199,16 +225,16 @@ export class RelationshipsView {
       const connectorIcon = rel.isSymmetric ? '↔' : '➔';
 
       return `
-        <div class="relationship-card" data-rel-id="${rel.id}">
+        <div class="relationship-card" data-rel-id="${escapeHtml(rel.id)}">
           <div>
             <!-- Fila superior: Categoría, Fechas y Estado -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <span class="cat-badge cat-${rel.category}">${this.formatCategory(rel.category)}</span>
+              <span class="cat-badge cat-${escapeHtml(rel.category)}">${this.formatCategory(rel.category)}</span>
               <div style="display: flex; gap: 6px; align-items: center;">
                 ${rel.startDate || rel.endDate ? `
                   <span class="rel-dates-badge">
                     <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    ${rel.startDate}${rel.endDate ? ` — ${rel.endDate}` : ''}
+                    ${escapeHtml(rel.startDate)}${rel.endDate ? ` — ${escapeHtml(rel.endDate)}` : ''}
                   </span>
                 ` : ''}
                 <span class="badge ${rel.status === 'conflictiva' ? 'badge-accent' : ''}">${this.formatStatus(rel.status)}</span>
@@ -217,13 +243,13 @@ export class RelationshipsView {
 
             <!-- Entidades conectadas -->
             <div class="relationship-entities">
-              <div class="rel-entity" data-entity-id="${source.id}" data-entity-type="${source.type}">
-                <div class="rel-entity-avatar ${source.type === 'group' ? 'is-group' : ''}" style="background-color: ${source.color};">
-                  ${source.name.charAt(0).toUpperCase()}
+              <div class="rel-entity" data-entity-id="${escapeHtml(source.id)}" data-entity-type="${escapeHtml(source.type)}">
+                <div class="rel-entity-avatar ${source.type === 'group' ? 'is-group' : ''}" style="background-color: ${escapeHtml(source.color)};">
+                  ${escapeHtml(source.name.charAt(0).toUpperCase())}
                 </div>
                 <div class="rel-entity-info">
-                  <div class="rel-entity-name" title="${source.name}">${source.name}</div>
-                  <div class="rel-entity-role">${rel.roleSource || source.subtitle}</div>
+                  <div class="rel-entity-name" title="${escapeHtml(source.name)}">${escapeHtml(source.name)}</div>
+                  <div class="rel-entity-role">${escapeHtml(rel.roleSource || source.subtitle)}</div>
                 </div>
               </div>
 
@@ -232,13 +258,13 @@ export class RelationshipsView {
                 <span style="font-size: 0.6875rem; color: var(--text-muted);">${this.formatType(rel.type)}</span>
               </div>
 
-              <div class="rel-entity" data-entity-id="${target.id}" data-entity-type="${target.type}" style="justify-content: flex-end; text-align: right;">
+              <div class="rel-entity" data-entity-id="${escapeHtml(target.id)}" data-entity-type="${escapeHtml(target.type)}" style="justify-content: flex-end; text-align: right;">
                 <div class="rel-entity-info">
-                  <div class="rel-entity-name" title="${target.name}">${target.name}</div>
-                  <div class="rel-entity-role">${rel.roleTarget || target.subtitle}</div>
+                  <div class="rel-entity-name" title="${escapeHtml(target.name)}">${escapeHtml(target.name)}</div>
+                  <div class="rel-entity-role">${escapeHtml(rel.roleTarget || target.subtitle)}</div>
                 </div>
-                <div class="rel-entity-avatar ${target.type === 'group' ? 'is-group' : ''}" style="background-color: ${target.color};">
-                  ${target.name.charAt(0).toUpperCase()}
+                <div class="rel-entity-avatar ${target.type === 'group' ? 'is-group' : ''}" style="background-color: ${escapeHtml(target.color)};">
+                  ${escapeHtml(target.name.charAt(0).toUpperCase())}
                 </div>
               </div>
             </div>
@@ -246,15 +272,15 @@ export class RelationshipsView {
             <!-- Descripción y contexto -->
             ${rel.description ? `
               <p style="font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.5; margin-top: 8px; padding: 6px 10px; background-color: var(--bg-subtle); border-radius: var(--radius-sm); border-left: 2px solid var(--border-strong);">
-                ${rel.description}
+                ${escapeHtml(rel.description)}
               </p>
             ` : ''}
           </div>
 
           <!-- Pie de tarjeta: acciones -->
           <div style="display: flex; justify-content: flex-end; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
-            <button class="btn btn-subtle btn-sm btn-edit-rel" data-rel-id="${rel.id}">Editar</button>
-            <button class="btn btn-subtle btn-icon btn-sm btn-delete-rel" data-rel-id="${rel.id}" title="Eliminar vínculo">
+            <button class="btn btn-subtle btn-sm btn-edit-rel" data-rel-id="${escapeHtml(rel.id)}">Editar</button>
+            <button class="btn btn-subtle btn-icon btn-sm btn-delete-rel" data-rel-id="${escapeHtml(rel.id)}" title="Eliminar vínculo">
               <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
@@ -299,53 +325,91 @@ export class RelationshipsView {
       const leader = group.leaderId ? store.getCharacter(group.leaderId) : null;
       const founder = group.founderId ? store.getCharacter(group.founderId) : null;
 
+      // Buscar tratados o relaciones inter-grupo
+      const groupAlliances = store.getRelationships(project.id).filter(r =>
+        (r.sourceId === group.id && r.targetType === 'group') ||
+        (r.targetId === group.id && r.sourceType === 'group')
+      );
+
       return `
-        <div class="group-card" data-group-id="${group.id}">
+        <div class="group-card" data-group-id="${escapeHtml(group.id)}">
           <div class="group-card-header">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
               <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 32px; height: 32px; border-radius: var(--radius-sm); background-color: ${group.color || '#4F46E5'}; color: #FFF; display: flex; align-items: center; justify-content: center; font-weight: bold;">
-                  ${group.name.charAt(0).toUpperCase()}
+                <div style="width: 34px; height: 34px; border-radius: var(--radius-sm); background-color: ${escapeHtml(group.color || '#4F46E5')}; color: #FFF; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;">
+                  ${escapeHtml(group.name.charAt(0).toUpperCase())}
                 </div>
                 <div>
                   <span style="font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; color: var(--accent); letter-spacing: 0.05em;">${this.formatGroupType(group.type)}</span>
-                  <h2 style="font-size: 1.15rem; font-family: var(--font-serif); line-height: 1.2;">${group.name}</h2>
+                  <h2 style="font-size: 1.15rem; font-family: var(--font-serif); line-height: 1.2;">${escapeHtml(group.name)}</h2>
                 </div>
               </div>
               <div style="display: flex; gap: 4px;">
-                <button class="btn btn-subtle btn-sm btn-edit-group" data-group-id="${group.id}">Editar</button>
-                <button class="btn btn-subtle btn-icon btn-sm btn-delete-group" data-group-id="${group.id}" title="Eliminar grupo">
+                <button class="btn btn-subtle btn-sm btn-edit-group" data-group-id="${escapeHtml(group.id)}">Editar</button>
+                <button class="btn btn-subtle btn-icon btn-sm btn-delete-group" data-group-id="${escapeHtml(group.id)}" title="Eliminar grupo">
                   <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
               </div>
             </div>
 
-            ${group.motto ? `<div class="group-card-motto">"${group.motto}"</div>` : ''}
+            ${group.motto ? `<div class="group-card-motto">"${escapeHtml(group.motto)}"</div>` : ''}
+
+            <!-- Líder y Fundador destacados -->
+            ${(leader || founder) ? `
+              <div style="display: flex; gap: 12px; margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary); flex-wrap: wrap;">
+                ${leader ? `<span>👑 <strong>Líder:</strong> ${escapeHtml(leader.name)}</span>` : ''}
+                ${founder ? `<span>🏛️ <strong>Fundador:</strong> ${escapeHtml(founder.name)}</span>` : ''}
+              </div>
+            ` : ''}
 
             <p style="font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.5; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
-              ${group.description || 'Sin descripción detallada.'}
+              ${escapeHtml(group.description || 'Sin descripción detallada.')}
             </p>
           </div>
 
+          <!-- Relaciones Inter-Grupo / Tratados Políticos -->
+          ${groupAlliances.length > 0 ? `
+            <div style="border-top: 1px solid var(--border-subtle); padding-top: var(--space-xs); margin-top: var(--space-sm);">
+              <div style="font-size: 0.6875rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">
+                Tratados con otras organizaciones (${groupAlliances.length})
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                ${groupAlliances.map(ga => {
+                  const otherId = ga.sourceId === group.id ? ga.targetId : ga.sourceId;
+                  const otherGrp = store.getGroup(otherId);
+                  if (!otherGrp) return '';
+                  return `
+                    <div style="font-size: 0.75rem; display: flex; justify-content: space-between; align-items: center; background: var(--bg-subtle); padding: 3px 8px; border-radius: var(--radius-sm);">
+                      <span>🏛️ <strong>${escapeHtml(otherGrp.name)}</strong> (${this.formatType(ga.type)})</span>
+                      <span class="badge" style="font-size: 0.625rem;">${this.formatStatus(ga.status)}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+
           <!-- Estructura y Miembros -->
-          <div style="border-top: 1px solid var(--border-subtle); padding-top: var(--space-sm); margin-top: var(--space-md);">
+          <div style="border-top: 1px solid var(--border-subtle); padding-top: var(--space-sm); margin-top: var(--space-sm);">
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">
               <span>Miembros registrados (${members.length})</span>
-              <button class="btn btn-subtle btn-sm btn-add-member" data-group-id="${group.id}" style="padding: 1px 6px; font-size: 0.6875rem;">+ Asignar miembro</button>
+              <button class="btn btn-subtle btn-sm btn-add-member" data-group-id="${escapeHtml(group.id)}" style="padding: 1px 6px; font-size: 0.6875rem;">+ Asignar miembro</button>
             </div>
 
             <div class="group-members-preview">
               ${members.length === 0 ? `
                 <div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">No hay miembros asignados a esta organización.</div>
-              ` : members.slice(0, 4).map(m => `
-                <div class="group-member-row" data-char-id="${m.character.id}">
+              ` : members.slice(0, 5).map(m => `
+                <div class="group-member-row" data-char-id="${escapeHtml(m.character.id)}">
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 18px; height: 18px; border-radius: 50%; background-color: ${m.character.avatarColor || 'var(--accent)'}; color: #FFF; font-size: 0.625rem; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">
-                      ${m.character.name.charAt(0).toUpperCase()}
+                    <span style="width: 18px; height: 18px; border-radius: 50%; background-color: ${escapeHtml(m.character.avatarColor || 'var(--accent)')}; color: #FFF; font-size: 0.625rem; display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">
+                      ${escapeHtml(m.character.name.charAt(0).toUpperCase())}
                     </span>
-                    <span>${m.character.name}</span>
+                    <span>${escapeHtml(m.character.name)}</span>
                   </div>
-                  <span class="badge" style="font-size: 0.625rem; padding: 1px 6px;">${m.role}</span>
+                  <span class="badge" style="font-size: 0.625rem; padding: 1px 6px;">
+                    ${escapeHtml(m.role)}${m.startDate || m.endDate ? ` (${escapeHtml(m.startDate || '')}${m.endDate ? ` — ${escapeHtml(m.endDate)}` : ''})` : ''}
+                  </span>
                 </div>
               `).join('')}
             </div>
@@ -385,6 +449,9 @@ export class RelationshipsView {
           <div class="legend-item"><span class="legend-color-dot" style="background-color: #059669;"></span><span>Social</span></div>
           <div class="legend-item"><span class="legend-color-dot" style="background-color: #2563EB;"></span><span>Política</span></div>
           <div class="legend-item"><span class="legend-color-dot" style="background-color: #7C3AED;"></span><span>Pertenencia</span></div>
+          <div class="legend-item" style="border-left: 1px solid var(--border-subtle); padding-left: 8px;">
+            <span style="font-weight: bold;">➔</span><span>Direccional</span>
+          </div>
         </div>
 
         <canvas id="network-canvas" class="network-canvas"></canvas>
@@ -404,7 +471,7 @@ export class RelationshipsView {
   }
 
   /* ==========================================================================
-     MODO 3: LINAJE Y ÁRBOL FAMILIAR
+     MODO 3: LINAJE Y ÁRBOL FAMILIAR MULTIGENERACIONAL
      ========================================================================== */
   renderLineageMode(project) {
     const characters = store.getCharacters(project.id);
@@ -423,30 +490,49 @@ export class RelationshipsView {
             <label class="form-label" for="select-lineage-char" style="margin: 0;">Foco del Linaje:</label>
             <select class="form-select" id="select-lineage-char" style="width: auto; font-weight: 600;">
               ${characters.map(ch => `
-                <option value="${ch.id}" ${ch.id === currentChar.id ? 'selected' : ''}>${ch.name} ${ch.alias ? `("${ch.alias}")` : ''}</option>
+                <option value="${escapeHtml(ch.id)}" ${ch.id === currentChar.id ? 'selected' : ''}>${escapeHtml(ch.name)} ${ch.alias ? `("${escapeHtml(ch.alias)}")` : ''}</option>
               `).join('')}
             </select>
           </div>
-          <button class="btn btn-secondary btn-sm" id="btn-add-family-link" data-char-id="${currentChar.id}">
-            + Vincular familiar a ${currentChar.name}
+          <button class="btn btn-secondary btn-sm" id="btn-add-family-link" data-char-id="${escapeHtml(currentChar.id)}">
+            + Vincular familiar a ${escapeHtml(currentChar.name)}
           </button>
         </div>
 
         <!-- Árbol Jerárquico Generacional -->
         <div class="lineage-wrapper">
           
-          <!-- NIVEL 1: PROGENITORES Y ANCESTROS -->
+          <!-- NIVEL SUPERIOR: ANCESTROS Y ABUELOS (GENERACIÓN +2 Y SUPERIOR) -->
+          ${family.ancestors.length > 0 ? `
+            <div class="lineage-level">
+              <span class="lineage-level-title">Ancestros y Generaciones Previas (${family.ancestors.length})</span>
+              <div class="lineage-nodes-row">
+                ${family.ancestors.map(a => `
+                  <div class="lineage-node" data-char-id="${escapeHtml(a.character.id)}" title="Haz clic para recentrar en ${escapeHtml(a.character.name)}">
+                    <span class="inspector-character-avatar" style="background-color: ${escapeHtml(a.character.avatarColor)};">${escapeHtml(a.character.name.charAt(0))}</span>
+                    <div>
+                      <div style="font-size: 0.875rem; font-weight: 600;">${escapeHtml(a.character.name)}</div>
+                      <div style="font-size: 0.6875rem; color: var(--text-muted);">${escapeHtml(a.relationship.roleSource || 'Ancestro/a')}${a.via ? ` (vía ${escapeHtml(a.via.name)})` : ''}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="lineage-branch-connector"></div>
+            </div>
+          ` : ''}
+
+          <!-- NIVEL INTERMEDIO SUPERIOR: PROGENITORES Y TUTORES (GENERACIÓN +1) -->
           <div class="lineage-level">
-            <span class="lineage-level-title">Progenitores y Ancestros</span>
+            <span class="lineage-level-title">Progenitores y Tutores</span>
             <div class="lineage-nodes-row">
               ${family.parents.length === 0 ? `
                 <div style="font-size: 0.8125rem; color: var(--text-muted); font-style: italic; padding: 6px 12px;">No hay progenitores registrados</div>
               ` : family.parents.map(p => `
-                <div class="lineage-node" data-char-id="${p.character.id}">
-                  <span class="inspector-character-avatar" style="background-color: ${p.character.avatarColor};">${p.character.name.charAt(0)}</span>
+                <div class="lineage-node" data-char-id="${escapeHtml(p.character.id)}" title="Haz clic para recentrar en ${escapeHtml(p.character.name)}">
+                  <span class="inspector-character-avatar" style="background-color: ${escapeHtml(p.character.avatarColor)};">${escapeHtml(p.character.name.charAt(0))}</span>
                   <div>
-                    <div style="font-size: 0.875rem; font-weight: 600;">${p.character.name}</div>
-                    <div style="font-size: 0.6875rem; color: var(--text-muted);">${p.relationship.roleSource || 'Progenitor/a'}</div>
+                    <div style="font-size: 0.875rem; font-weight: 600;">${escapeHtml(p.character.name)}</div>
+                    <div style="font-size: 0.6875rem; color: var(--text-muted);">${escapeHtml(p.relationship.roleSource || 'Progenitor/a')}</div>
                   </div>
                 </div>
               `).join('')}
@@ -454,66 +540,93 @@ export class RelationshipsView {
             <div class="lineage-branch-connector"></div>
           </div>
 
-          <!-- NIVEL 2: GENERACIÓN CENTRAL (HERMANOS, PERSONAJE FOCO, PAREJA) -->
+          <!-- NIVEL CENTRAL: GENERACIÓN CENTRAL (HERMANOS, PERSONAJE FOCO, PAREJAS) -->
           <div class="lineage-level">
             <span class="lineage-level-title">Generación Central</span>
             <div class="lineage-nodes-row" style="align-items: center;">
               
               <!-- Hermanos -->
               ${family.siblings.map(s => `
-                <div class="lineage-node" data-char-id="${s.character.id}" title="Hermano/a">
-                  <span class="inspector-character-avatar" style="background-color: ${s.character.avatarColor};">${s.character.name.charAt(0)}</span>
+                <div class="lineage-node" data-char-id="${escapeHtml(s.character.id)}" title="Hermano/a. Haz clic para recentrar">
+                  <span class="inspector-character-avatar" style="background-color: ${escapeHtml(s.character.avatarColor)};">${escapeHtml(s.character.name.charAt(0))}</span>
                   <div>
-                    <div style="font-size: 0.875rem; font-weight: 600;">${s.character.name}</div>
-                    <div style="font-size: 0.6875rem; color: var(--text-muted);">${s.relationship.roleSource || 'Hermano/a'}</div>
+                    <div style="font-size: 0.875rem; font-weight: 600;">${escapeHtml(s.character.name)}</div>
+                    <div style="font-size: 0.6875rem; color: var(--text-muted);">${escapeHtml(s.relationship.roleSource || 'Hermano/a')}${s.relationship.isInferred ? ' (por progenitor común)' : ''}</div>
                   </div>
                 </div>
               `).join('')}
 
               <!-- Personaje Foco -->
-              <div class="lineage-node is-target" data-char-id="${currentChar.id}">
-                <span class="inspector-character-avatar" style="background-color: ${currentChar.avatarColor}; width: 28px; height: 28px; font-size: 0.8125rem;">${currentChar.name.charAt(0)}</span>
+              <div class="lineage-node is-target" data-char-id="${escapeHtml(currentChar.id)}">
+                <span class="inspector-character-avatar" style="background-color: ${escapeHtml(currentChar.avatarColor)}; width: 28px; height: 28px; font-size: 0.8125rem;">${escapeHtml(currentChar.name.charAt(0))}</span>
                 <div>
-                  <div style="font-size: 0.9375rem; font-weight: 700; font-family: var(--font-serif);">${currentChar.name}</div>
+                  <div style="font-size: 0.9375rem; font-weight: 700; font-family: var(--font-serif);">${escapeHtml(currentChar.name)}</div>
                   <div style="font-size: 0.6875rem; color: var(--accent); font-weight: 600;">(Personaje Activo)</div>
                 </div>
               </div>
 
-              <!-- Parejas / Cónyuges -->
-              ${family.spouses.map(sp => `
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <span style="font-size: 0.75rem; color: var(--text-muted);">💍</span>
-                  <div class="lineage-node" data-char-id="${sp.character.id}">
-                    <span class="inspector-character-avatar" style="background-color: ${sp.character.avatarColor};">${sp.character.name.charAt(0)}</span>
-                    <div>
-                      <div style="font-size: 0.875rem; font-weight: 600;">${sp.character.name}</div>
-                      <div style="font-size: 0.6875rem; color: var(--text-muted);">${sp.relationship.type === 'matrimonio' ? 'Cónyuge' : 'Pareja'} (${this.formatStatus(sp.relationship.status)})</div>
+              <!-- Parejas / Cónyuges / Exparejas / Divorcios -->
+              ${family.spouses.map(sp => {
+                let loveIcon = '💍';
+                if (sp.relationship.status === 'divorciados' || sp.relationship.type === 'expareja') loveIcon = '💔';
+                else if (sp.relationship.status === 'viudedad') loveIcon = '🖤';
+                else if (sp.relationship.type === 'pareja' || sp.relationship.type === 'amantes') loveIcon = '💘';
+                else if (sp.relationship.status === 'prometidos') loveIcon = '💌';
+
+                return `
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <span style="font-size: 0.85rem;" title="${escapeHtml(sp.relationship.type)}">${loveIcon}</span>
+                    <div class="lineage-node" data-char-id="${escapeHtml(sp.character.id)}" title="Haz clic para recentrar en ${escapeHtml(sp.character.name)}">
+                      <span class="inspector-character-avatar" style="background-color: ${escapeHtml(sp.character.avatarColor)};">${escapeHtml(sp.character.name.charAt(0))}</span>
+                      <div>
+                        <div style="font-size: 0.875rem; font-weight: 600;">${escapeHtml(sp.character.name)}</div>
+                        <div style="font-size: 0.6875rem; color: var(--text-muted);">${this.formatType(sp.relationship.type)} (${this.formatStatus(sp.relationship.status)})</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
 
             </div>
             <div class="lineage-branch-connector"></div>
           </div>
 
-          <!-- NIVEL 3: DESCENDIENTES E HIJOS -->
+          <!-- NIVEL INTERMEDIO INFERIOR: DESCENDIENTES E HIJOS DIRECTOS (GENERACIÓN -1) -->
           <div class="lineage-level">
             <span class="lineage-level-title">Descendientes e Hijos</span>
             <div class="lineage-nodes-row">
               ${family.children.length === 0 ? `
                 <div style="font-size: 0.8125rem; color: var(--text-muted); font-style: italic; padding: 6px 12px;">Sin descendientes registrados</div>
               ` : family.children.map(c => `
-                <div class="lineage-node" data-char-id="${c.character.id}">
-                  <span class="inspector-character-avatar" style="background-color: ${c.character.avatarColor};">${c.character.name.charAt(0)}</span>
+                <div class="lineage-node" data-char-id="${escapeHtml(c.character.id)}" title="Haz clic para recentrar en ${escapeHtml(c.character.name)}">
+                  <span class="inspector-character-avatar" style="background-color: ${escapeHtml(c.character.avatarColor)};">${escapeHtml(c.character.name.charAt(0))}</span>
                   <div>
-                    <div style="font-size: 0.875rem; font-weight: 600;">${c.character.name}</div>
-                    <div style="font-size: 0.6875rem; color: var(--text-muted);">${c.relationship.roleTarget || 'Hijo/a / Descendiente'}</div>
+                    <div style="font-size: 0.875rem; font-weight: 600;">${escapeHtml(c.character.name)}</div>
+                    <div style="font-size: 0.6875rem; color: var(--text-muted);">${escapeHtml(c.relationship.roleTarget || 'Hijo/a / Descendiente')}</div>
                   </div>
                 </div>
               `).join('')}
             </div>
           </div>
+
+          <!-- NIVEL INFERIOR: NIETOS Y GENERACIONES POSTERIORES (GENERACIÓN -2) -->
+          ${family.descendants.length > 0 ? `
+            <div class="lineage-level">
+              <div class="lineage-branch-connector"></div>
+              <span class="lineage-level-title">Nietos y Generaciones Posteriores (${family.descendants.length})</span>
+              <div class="lineage-nodes-row">
+                ${family.descendants.map(d => `
+                  <div class="lineage-node" data-char-id="${escapeHtml(d.character.id)}" title="Haz clic para recentrar en ${escapeHtml(d.character.name)}">
+                    <span class="inspector-character-avatar" style="background-color: ${escapeHtml(d.character.avatarColor)};">${escapeHtml(d.character.name.charAt(0))}</span>
+                    <div>
+                      <div style="font-size: 0.875rem; font-weight: 600;">${escapeHtml(d.character.name)}</div>
+                      <div style="font-size: 0.6875rem; color: var(--text-muted);">${escapeHtml(d.relationship.roleTarget || 'Nieto/a')}${d.via ? ` (hijo/a de ${escapeHtml(d.via.name)})` : ''}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
 
         </div>
       </div>
@@ -539,10 +652,12 @@ export class RelationshipsView {
       hermanos: 'Hermanos',
       progenitor_descendiente: 'Progenitor / Descendiente',
       adopcion: 'Adopción',
+      abuelo_nieto: 'Abuelo / Nieto',
       pareja: 'Pareja',
       matrimonio: 'Matrimonio',
       prometidos: 'Prometidos',
       expareja: 'Expareja',
+      amantes: 'Amantes',
       amistad: 'Amistad',
       rivalidad: 'Rivalidad',
       enemistad: 'Enemistad',
@@ -660,6 +775,17 @@ export class RelationshipsView {
         } else if (type === 'group') {
           const grp = store.getGroup(id);
           if (grp) this.openGroupModal(grp, project.id);
+        }
+      });
+    });
+
+    // Clic en fila de miembro de grupo
+    container.querySelectorAll('.group-member-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const charId = row.getAttribute('data-char-id');
+        if (charId) {
+          this.app.navigate('characters', project.id, { characterId: charId });
         }
       });
     });
@@ -840,13 +966,45 @@ export class RelationshipsView {
         const isHighlighted = this.selectedNode &&
           (this.selectedNode.id === srcNode.id || this.selectedNode.id === tgtNode.id);
 
+        const edgeColor = categoryColors[edge.category] || '#9CA3AF';
+
+        // Trazado de la línea
         ctx.beginPath();
         ctx.moveTo(srcNode.x, srcNode.y);
         ctx.lineTo(tgtNode.x, tgtNode.y);
-        ctx.strokeStyle = categoryColors[edge.category] || '#9CA3AF';
+        ctx.strokeStyle = edgeColor;
         ctx.lineWidth = isHighlighted ? 3.5 : 1.5;
         ctx.globalAlpha = this.selectedNode ? (isHighlighted ? 1 : 0.2) : 0.65;
         ctx.stroke();
+
+        // Si la relación es dirigida, dibujar punta de flecha en dirección al destino
+        if (!edge.relationship.isSymmetric) {
+          const dx = tgtNode.x - srcNode.x;
+          const dy = tgtNode.y - srcNode.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0) {
+            const arrowDist = tgtNode.radius + 12;
+            const arrowX = tgtNode.x - (dx / dist) * arrowDist;
+            const arrowY = tgtNode.y - (dy / dist) * arrowDist;
+            const angle = Math.atan2(dy, dx);
+            const headLen = isHighlighted ? 11 : 8;
+
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(
+              arrowX - headLen * Math.cos(angle - Math.PI / 6),
+              arrowY - headLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+              arrowX - headLen * Math.cos(angle + Math.PI / 6),
+              arrowY - headLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fillStyle = edgeColor;
+            ctx.fill();
+          }
+        }
+
         ctx.globalAlpha = 1;
       });
 
@@ -857,7 +1015,6 @@ export class RelationshipsView {
         // Círculo / Cuadrado del nodo
         ctx.beginPath();
         if (node.type === 'group') {
-          // Cuadrado redondeado para organizaciones
           const r = node.radius;
           ctx.roundRect ? ctx.roundRect(node.x - r, node.y - r, r * 2, r * 2, 6) : ctx.rect(node.x - r, node.y - r, r * 2, r * 2);
         } else {
@@ -913,18 +1070,20 @@ export class RelationshipsView {
       }
     });
 
-    window.addEventListener('mousemove', (e) => {
+    this._onWindowMouseMove = (e) => {
       if (!isDragging || !this.draggedNode) return;
       const rect = canvas.getBoundingClientRect();
       this.draggedNode.x = Math.max(30, Math.min(width - 30, e.clientX - rect.left));
       this.draggedNode.y = Math.max(30, Math.min(height - 30, e.clientY - rect.top));
       draw();
-    });
+    };
+    window.addEventListener('mousemove', this._onWindowMouseMove);
 
-    window.addEventListener('mouseup', () => {
+    this._onWindowMouseUp = () => {
       isDragging = false;
       this.draggedNode = null;
-    });
+    };
+    window.addEventListener('mouseup', this._onWindowMouseUp);
 
     // Botón centrar
     document.getElementById('btn-canvas-reset')?.addEventListener('click', () => {
@@ -954,12 +1113,12 @@ export class RelationshipsView {
 
     header.innerHTML = `
       <div style="display: flex; align-items: center; gap: 8px;">
-        <div style="width: 28px; height: 28px; border-radius: ${node.type === 'group' ? '4px' : '50%'}; background-color: ${node.color}; color: #FFF; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8125rem;">
-          ${node.name.charAt(0)}
+        <div style="width: 28px; height: 28px; border-radius: ${node.type === 'group' ? '4px' : '50%'}; background-color: ${escapeHtml(node.color)}; color: #FFF; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8125rem;">
+          ${escapeHtml(node.name.charAt(0))}
         </div>
         <div>
-          <h3 style="font-size: 1rem; font-family: var(--font-serif);">${node.name}</h3>
-          <span style="font-size: 0.6875rem; color: var(--text-muted);">${node.subtitle}</span>
+          <h3 style="font-size: 1rem; font-family: var(--font-serif);">${escapeHtml(node.name)}</h3>
+          <span style="font-size: 0.6875rem; color: var(--text-muted);">${escapeHtml(node.subtitle)}</span>
         </div>
       </div>
     `;
@@ -975,14 +1134,23 @@ export class RelationshipsView {
         ${rels.length === 0 ? `
           <div style="font-size: 0.8125rem; color: var(--text-muted); font-style: italic;">Sin conexiones registradas todavía.</div>
         ` : rels.map(r => {
-          const otherId = r.sourceId === node.id ? r.targetId : r.sourceId;
+          const isSource = r.sourceId === node.id;
+          const otherId = isSource ? r.targetId : r.sourceId;
           const other = store.getEntity(otherId);
           if (!other) return '';
+
+          const roleDisplay = isSource
+            ? (r.roleTarget || r.roleSource || r.type)
+            : (r.roleSource || r.type);
+
+          const arrowSymbol = r.isSymmetric ? '↔' : (isSource ? '➔' : '⬅');
+
           return `
             <div class="card" style="padding: 6px 8px; font-size: 0.8125rem; display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <strong>${other.name}</strong>
-                <div style="font-size: 0.6875rem; color: var(--text-muted);">${this.formatType(r.type)} (${this.formatCategory(r.category)})</div>
+                <span style="margin-right: 4px; color: var(--text-muted); font-size: 0.75rem;">${arrowSymbol}</span>
+                <strong>${escapeHtml(other.name)}</strong>
+                <div style="font-size: 0.6875rem; color: var(--text-muted);">${escapeHtml(roleDisplay)} (${this.formatCategory(r.category)})</div>
               </div>
               <span class="badge" style="font-size: 0.625rem;">${this.formatStatus(r.status)}</span>
             </div>
@@ -1038,11 +1206,11 @@ export class RelationshipsView {
               <label class="form-label" for="rel-source">Entidad de Origen *</label>
               <select id="rel-source" class="form-select" required>
                 <optgroup label="Personajes">
-                  ${characters.map(c => `<option value="char:${c.id}" ${initialSourceId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                  ${characters.map(c => `<option value="char:${escapeHtml(c.id)}" ${initialSourceId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                 </optgroup>
                 ${groups.length > 0 ? `
                   <optgroup label="Casas y Organizaciones">
-                    ${groups.map(g => `<option value="group:${g.id}" ${initialSourceId === g.id ? 'selected' : ''}>🏛️ ${g.name}</option>`).join('')}
+                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialSourceId === g.id ? 'selected' : ''}>🏛️ ${escapeHtml(g.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
               </select>
@@ -1052,11 +1220,11 @@ export class RelationshipsView {
               <label class="form-label" for="rel-target">Entidad de Destino *</label>
               <select id="rel-target" class="form-select" required>
                 <optgroup label="Personajes">
-                  ${characters.map(c => `<option value="char:${c.id}" ${initialTargetId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                  ${characters.map(c => `<option value="char:${escapeHtml(c.id)}" ${initialTargetId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                 </optgroup>
                 ${groups.length > 0 ? `
                   <optgroup label="Casas y Organizaciones">
-                    ${groups.map(g => `<option value="group:${g.id}" ${initialTargetId === g.id ? 'selected' : ''}>🏛️ ${g.name}</option>`).join('')}
+                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialTargetId === g.id ? 'selected' : ''}>🏛️ ${escapeHtml(g.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
               </select>
@@ -1088,11 +1256,11 @@ export class RelationshipsView {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
             <div class="form-group">
               <label class="form-label" for="rel-role-source">Rol del Origen</label>
-              <input type="text" id="rel-role-source" class="form-input" value="${relationship ? relationship.roleSource : ''}" placeholder="Ej: Madre, Mentor, Soberano" />
+              <input type="text" id="rel-role-source" class="form-input" value="${relationship ? escapeHtml(relationship.roleSource) : ''}" placeholder="Ej: Madre, Mentor, Soberano" />
             </div>
             <div class="form-group">
               <label class="form-label" for="rel-role-target">Rol del Destino</label>
-              <input type="text" id="rel-role-target" class="form-input" value="${relationship ? relationship.roleTarget : ''}" placeholder="Ej: Hija, Aprendiz, Vasallo" />
+              <input type="text" id="rel-role-target" class="form-input" value="${relationship ? escapeHtml(relationship.roleTarget) : ''}" placeholder="Ej: Hija, Aprendiz, Vasallo" />
             </div>
           </div>
 
@@ -1108,6 +1276,7 @@ export class RelationshipsView {
                 <option value="prometidos" ${relationship && relationship.status === 'prometidos' ? 'selected' : ''}>Comprometidos</option>
                 <option value="divorciados" ${relationship && relationship.status === 'divorciados' ? 'selected' : ''}>Divorciados / Separados</option>
                 <option value="viudedad" ${relationship && relationship.status === 'viudedad' ? 'selected' : ''}>Viudedad</option>
+                <option value="disidente" ${relationship && relationship.status === 'disidente' ? 'selected' : ''}>Disidente</option>
               </select>
             </div>
 
@@ -1123,18 +1292,18 @@ export class RelationshipsView {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
             <div class="form-group">
               <label class="form-label" for="rel-start-date">Fecha / Época de inicio</label>
-              <input type="text" id="rel-start-date" class="form-input" value="${relationship ? relationship.startDate : ''}" placeholder="Ej: Año 1042 o Antes del Ocaso" />
+              <input type="text" id="rel-start-date" class="form-input" value="${relationship ? escapeHtml(relationship.startDate) : ''}" placeholder="Ej: Año 1042 o Antes del Ocaso" />
             </div>
             <div class="form-group">
               <label class="form-label" for="rel-end-date">Fecha / Época de fin (opcional)</label>
-              <input type="text" id="rel-end-date" class="form-input" value="${relationship ? relationship.endDate : ''}" placeholder="Ej: Año 1050 (si finalizó)" />
+              <input type="text" id="rel-end-date" class="form-input" value="${relationship ? escapeHtml(relationship.endDate) : ''}" placeholder="Ej: Año 1050 (si finalizó)" />
             </div>
           </div>
 
           <!-- Descripción / Contexto narrativo -->
           <div class="form-group">
             <label class="form-label" for="rel-desc">Contexto, motivos y acuerdos</label>
-            <textarea id="rel-desc" class="form-textarea" placeholder="Explica el origen de este lazo, secretos compartidos, motivos de enemistad o consecuencias narrativas...">${relationship ? relationship.description : ''}</textarea>
+            <textarea id="rel-desc" class="form-textarea" placeholder="Explica el origen de este lazo, secretos compartidos, motivos de enemistad o consecuencias narrativas...">${relationship ? escapeHtml(relationship.description) : ''}</textarea>
           </div>
         </form>
       `,
@@ -1184,7 +1353,7 @@ export class RelationshipsView {
           const currentType = relationship ? relationship.type : (defaultValues.type || options[0].id);
 
           typeSelect.innerHTML = options.map(opt => `
-            <option value="${opt.id}" ${opt.id === currentType ? 'selected' : ''}>${opt.name}</option>
+            <option value="${escapeHtml(opt.id)}" ${opt.id === currentType ? 'selected' : ''}>${escapeHtml(opt.name)}</option>
           `).join('');
 
           if (!relationship) {
@@ -1214,16 +1383,18 @@ export class RelationshipsView {
         const targetVal = modalEl.querySelector('#rel-target').value;
         const category = modalEl.querySelector('#rel-category').value;
         const type = modalEl.querySelector('#rel-type').value;
-        const roleSource = modalEl.querySelector('#rel-role-source').value;
-        const roleTarget = modalEl.querySelector('#rel-role-target').value;
+        const roleSource = modalEl.querySelector('#rel-role-source').value.trim();
+        const roleTarget = modalEl.querySelector('#rel-role-target').value.trim();
         const isSymmetric = modalEl.querySelector('#rel-symmetric').checked;
         const status = modalEl.querySelector('#rel-status').value;
-        const startDate = modalEl.querySelector('#rel-start-date').value;
-        const endDate = modalEl.querySelector('#rel-end-date').value;
-        const description = modalEl.querySelector('#rel-desc').value;
+        const startDate = modalEl.querySelector('#rel-start-date').value.trim();
+        const endDate = modalEl.querySelector('#rel-end-date').value.trim();
+        const description = modalEl.querySelector('#rel-desc').value.trim();
 
-        const [sourceTypePrefix, sourceId] = sourceVal.split(':');
-        const [targetTypePrefix, targetId] = targetVal.split(':');
+        const [sourceTypePrefix, ...sourceIdParts] = sourceVal.split(':');
+        const [targetTypePrefix, ...targetIdParts] = targetVal.split(':');
+        const sourceId = sourceIdParts.join(':');
+        const targetId = targetIdParts.join(':');
 
         if (sourceId === targetId) {
           showToast('Una entidad no puede relacionarse consigo misma', 'error');
@@ -1275,7 +1446,7 @@ export class RelationshipsView {
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-md);">
             <div class="form-group">
               <label class="form-label" for="group-name">Nombre de la Casa u Organización *</label>
-              <input type="text" id="group-name" class="form-input" value="${group ? group.name : ''}" placeholder="Ej: Casa Thorne, Orden del Velo" required />
+              <input type="text" id="group-name" class="form-input" value="${group ? escapeHtml(group.name) : ''}" placeholder="Ej: Casa Thorne, Orden del Velo" required />
             </div>
             <div class="form-group">
               <label class="form-label" for="group-type">Tipo de Estructura</label>
@@ -1294,7 +1465,7 @@ export class RelationshipsView {
 
           <div class="form-group">
             <label class="form-label" for="group-motto">Lema heráldico o divisa</label>
-            <input type="text" id="group-motto" class="form-input" value="${group ? group.motto : ''}" placeholder="Ej: El orden prevalece en la sombra" />
+            <input type="text" id="group-motto" class="form-input" value="${group ? escapeHtml(group.motto) : ''}" placeholder="Ej: El orden prevalece en la sombra" />
           </div>
 
           <!-- Color heráldico distintivo -->
@@ -1317,7 +1488,7 @@ export class RelationshipsView {
               <select id="group-leader" class="form-select">
                 <option value="">(Sin asignar o líder desconocido)</option>
                 ${characters.map(c => `
-                  <option value="${c.id}" ${group && group.leaderId === c.id ? 'selected' : ''}>${c.name} (${c.alias || c.role})</option>
+                  <option value="${escapeHtml(c.id)}" ${group && group.leaderId === c.id ? 'selected' : ''}>${escapeHtml(c.name)} (${escapeHtml(c.alias || c.role)})</option>
                 `).join('')}
               </select>
             </div>
@@ -1326,7 +1497,7 @@ export class RelationshipsView {
               <select id="group-founder" class="form-select">
                 <option value="">(Fundador ancestral o desconocido)</option>
                 ${characters.map(c => `
-                  <option value="${c.id}" ${group && group.founderId === c.id ? 'selected' : ''}>${c.name}</option>
+                  <option value="${escapeHtml(c.id)}" ${group && group.founderId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>
                 `).join('')}
               </select>
             </div>
@@ -1334,7 +1505,7 @@ export class RelationshipsView {
 
           <div class="form-group">
             <label class="form-label" for="group-desc">Historia, influencia territorial y propósito</label>
-            <textarea id="group-desc" class="form-textarea" placeholder="¿Cuál es el peso de esta casa o facción en la historia? ¿Qué recursos o títulos ostenta?">${group ? group.description : ''}</textarea>
+            <textarea id="group-desc" class="form-textarea" placeholder="¿Cuál es el peso de esta casa o facción en la historia? ¿Qué recursos o títulos ostenta?">${group ? escapeHtml(group.description) : ''}</textarea>
           </div>
         </form>
       `,

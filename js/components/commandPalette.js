@@ -1,6 +1,7 @@
 /* Writer OS — Paleta de Comandos y Búsqueda Global (Ctrl + K) */
 
 import { store } from '../models/store.js';
+import { escapeHtml } from '../models/types.js';
 
 class CommandPalette {
   constructor() {
@@ -213,7 +214,7 @@ class CommandPalette {
             <div class="palette-item ${itemIndex === this.selectedIndex ? 'is-selected' : ''}" data-index="${itemIndex}">
               <div class="palette-item-left">
                 <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-                <span>${g.name} ${g.motto ? `— <em>"${g.motto}"</em>` : ''}</span>
+                <span>${escapeHtml(g.name)} ${g.motto ? `— <em>"${escapeHtml(g.motto)}"</em>` : ''}</span>
               </div>
               <span class="palette-item-badge">Organización</span>
             </div>
@@ -242,9 +243,9 @@ class CommandPalette {
             <div class="palette-item ${itemIndex === this.selectedIndex ? 'is-selected' : ''}" data-index="${itemIndex}">
               <div class="palette-item-left">
                 <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-                <span>${src.name} ${r.isSymmetric ? '↔' : '➔'} ${tgt.name} (${r.type})</span>
+                <span>${escapeHtml(src.name)} ${r.isSymmetric ? '↔' : '➔'} ${escapeHtml(tgt.name)} (${escapeHtml(r.type)})</span>
               </div>
-              <span class="palette-item-badge">${r.category}</span>
+              <span class="palette-item-badge">${escapeHtml(r.category)}</span>
             </div>
           `;
         });
@@ -268,7 +269,7 @@ class CommandPalette {
             <div class="palette-item ${itemIndex === this.selectedIndex ? 'is-selected' : ''}" data-index="${itemIndex}">
               <div class="palette-item-left">
                 <svg class="icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                <span>${p.title}</span>
+                <span>${escapeHtml(p.title)}</span>
               </div>
               <span class="palette-item-badge">Proyecto</span>
             </div>
@@ -279,7 +280,7 @@ class CommandPalette {
       if (this.items.length === 0) {
         html = `
           <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.875rem;">
-            No se encontraron coincidencias para "<strong>${query}</strong>"
+            No se encontraron coincidencias para "<strong>${escapeHtml(query)}</strong>"
           </div>
         `;
       }

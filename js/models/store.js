@@ -58,10 +58,19 @@ class Store {
           if (sampleRels.length === 0 && sampleProjectData.relationships) {
             this.data.relationships.push(...sampleProjectData.relationships);
           }
-          // Añadir personaje Silvia Thorne si no está en la muestra anterior
-          if (!this.data.characters.some(c => c.id === 'char-silvia')) {
-            const silvia = sampleProjectData.characters.find(c => c.id === 'char-silvia');
-            if (silvia) this.data.characters.push(silvia);
+          if (sampleProjectData.characters) {
+            sampleProjectData.characters.forEach(sc => {
+              if (!this.data.characters.some(c => c.id === sc.id)) {
+                this.data.characters.push(sc);
+              }
+            });
+          }
+          if (sampleProjectData.relationships) {
+            sampleProjectData.relationships.forEach(sr => {
+              if (!this.data.relationships.some(r => r.id === sr.id)) {
+                this.data.relationships.push(sr);
+              }
+            });
           }
         }
       } else {
@@ -338,6 +347,12 @@ class Store {
       r => r.sourceId !== id && r.targetId !== id
     );
 
+    // Limpiar líderes o fundadores que referencien al personaje eliminado en organizaciones
+    (this.data.groups || []).forEach(g => {
+      if (g.leaderId === id) g.leaderId = null;
+      if (g.founderId === id) g.founderId = null;
+    });
+
     this.touchProject(projectId);
     this.save();
   }
@@ -463,15 +478,16 @@ class Store {
       const isSource = rel.sourceId === charId;
       const otherId = isSource ? rel.targetId : rel.sourceId;
       const otherEntity = this.getEntity(otherId);
-      const myRole = isSource ? rel.roleSource : (rel.isSymmetric ? rel.roleSource : rel.roleTarget);
-      const otherRole = isSource ? (rel.isSymmetric ? rel.roleSource : rel.roleTarget) : rel.roleSource;
+      
+      const myRole = isSource ? (rel.roleSource || rel.type) : (rel.roleTarget || rel.roleSource || rel.type);
+      const otherRole = isSource ? (rel.roleTarget || rel.roleSource || rel.type) : (rel.roleSource || rel.type);
 
       return {
         relationship: rel,
         otherEntity,
         isSource,
-        myRole: myRole || rel.type,
-        otherRole: otherRole || rel.type
+        myRole,
+        otherRole
       };
     });
   }
@@ -482,11 +498,19 @@ class Store {
     const children = [];
     const siblings = [];
     const spouses = [];
+    const ancestors = [];
+    const descendants = [];
     const others = [];
 
-    // También buscar relaciones afectivas de tipo matrimonio/pareja
+    // 1. Relaciones afectivas (cónyuges, parejas, divorcios, viudedades)
     const loveRels = this.getRelationships(projectId).filter(
-      r => r.category === 'afectiva' && (r.type === 'pareja' || r.type === 'matrimonio')
+      r => r.category === 'afectiva' && (
+        r.type === 'pareja' ||
+        r.type === 'matrimonio' ||
+        r.type === 'prometidos' ||
+        r.type === 'expareja' ||
+        r.type === 'amantes'
+      )
     );
 
     loveRels.forEach(r => {
@@ -499,6 +523,7 @@ class Store {
       }
     });
 
+    // 2. Progenitores e Hijos directos
     rels.forEach(r => {
       const isSource = r.sourceId === charId;
       const isTarget = r.targetId === charId;
@@ -514,14 +539,26 @@ class Store {
         }
       } else if (r.type === 'progenitor_descendiente' || r.type === 'adopcion') {
         if (isSource) {
-          // Yo soy el progenitor, el otro es mi descendiente/hijo
+          // charId es progenitor, other es descendiente
           if (!children.some(c => c.character.id === other.id)) {
             children.push({ character: other, relationship: r });
           }
         } else {
-          // Yo soy el descendiente, el otro es mi progenitor/padre/madre
+          // other es progenitor, charId es descendiente
           if (!parents.some(p => p.character.id === other.id)) {
             parents.push({ character: other, relationship: r });
+          }
+        }
+      } else if (r.type === 'abuelo_nieto') {
+        if (isSource) {
+          // charId es abuelo, other es nieto
+          if (!descendants.some(d => d.character.id === other.id)) {
+            descendants.push({ character: other, relationship: r, generation: -2 });
+          }
+        } else {
+          // other es abuelo, charId es nieto
+          if (!ancestors.some(a => a.character.id === other.id)) {
+            ancestors.push({ character: other, relationship: r, generation: 2 });
           }
         }
       } else {
@@ -531,7 +568,71 @@ class Store {
       }
     });
 
-    return { parents, children, siblings, spouses, others };
+    // 3. Inferencia de hermanos que comparten al menos un progenitor
+    parents.forEach(p => {
+      const parentRels = rels.filter(r =>
+        (r.type === 'progenitor_descendiente' || r.type === 'adopcion') &&
+        r.sourceId === p.character.id &&
+        r.targetId !== charId
+      );
+      parentRels.forEach(pr => {
+        const siblingChar = this.getCharacter(pr.targetId);
+        if (siblingChar && !siblings.some(s => s.character.id === siblingChar.id)) {
+          siblings.push({
+            character: siblingChar,
+            relationship: {
+              id: `inferred-sib-${siblingChar.id}`,
+              type: 'hermanos',
+              category: 'familiar',
+              roleSource: 'Hermano/a',
+              roleTarget: 'Hermano/a',
+              status: 'activa',
+              isInferred: true
+            }
+          });
+        }
+      });
+    });
+
+    // 4. Búsqueda de Ancestros (Nivel +2: abuelos y bisabuelos a través de los progenitores)
+    parents.forEach(p => {
+      const gparents = rels.filter(r =>
+        (r.type === 'progenitor_descendiente' || r.type === 'adopcion') &&
+        r.targetId === p.character.id
+      );
+      gparents.forEach(gpr => {
+        const grandParentChar = this.getCharacter(gpr.sourceId);
+        if (grandParentChar && !ancestors.some(a => a.character.id === grandParentChar.id)) {
+          ancestors.push({
+            character: grandParentChar,
+            relationship: gpr,
+            generation: 2,
+            via: p.character
+          });
+        }
+      });
+    });
+
+    // 5. Búsqueda de Descendientes (Nivel -2: nietos y bisnietos a través de los hijos)
+    children.forEach(c => {
+      const gchildren = rels.filter(r =>
+        (r.type === 'progenitor_descendiente' || r.type === 'adopcion') &&
+        r.sourceId === c.character.id
+      );
+      gchildren.forEach(gcr => {
+        const grandChildChar = this.getCharacter(gcr.targetId);
+        if (grandChildChar && !descendants.some(d => d.character.id === grandChildChar.id)) {
+          descendants.push({
+            character: grandChildChar,
+            relationship: gcr,
+            generation: -2,
+            via: c.character
+          });
+        }
+      });
+    });
+
+    return { ancestors, parents, children, siblings, spouses, descendants, others };
   }
 
   getGroupMembers(groupId, projectId = this.activeProjectId) {
@@ -540,11 +641,17 @@ class Store {
     );
 
     return rels.map(r => {
-      const charId = r.targetId === groupId ? r.sourceId : r.targetId;
+      const isGroupTarget = r.targetId === groupId;
+      const charId = isGroupTarget ? r.sourceId : r.targetId;
       const character = this.getCharacter(charId);
+      const role = isGroupTarget ? (r.roleSource || 'Miembro') : (r.roleTarget || 'Miembro');
+
       return {
         character,
-        role: r.roleSource || 'Miembro',
+        role,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        status: r.status,
         relationship: r
       };
     }).filter(m => m.character !== null);

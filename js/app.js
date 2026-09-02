@@ -240,6 +240,8 @@ class App {
     } else if (action === 'open-group') {
       this.navigate('relationships', payload.projectId);
       setTimeout(() => {
+        this.views.relationships.currentMode = 'structured';
+        this.views.relationships.currentCategoryFilter = 'groups';
         const grp = store.getGroup(payload.groupId);
         if (grp) this.views.relationships.openGroupModal(grp, payload.projectId);
       }, 150);
