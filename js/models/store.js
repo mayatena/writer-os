@@ -323,22 +323,24 @@ class Store {
     const projectId = character.projectId;
     this.data.characters = this.data.characters.filter(c => c.id !== id);
 
-    // Desvincular de capítulos
+    // Desvincular de capítulos del mismo proyecto
     this.data.chapters.forEach(ch => {
-      if (ch.characterIds && ch.characterIds.includes(id)) {
+      if (ch.projectId === projectId && ch.characterIds && ch.characterIds.includes(id)) {
         ch.characterIds = ch.characterIds.filter(cid => cid !== id);
       }
     });
 
-    // Eliminar relaciones vinculadas al personaje
+    // Eliminar relaciones vinculadas al personaje en este proyecto
     this.data.relationships = (this.data.relationships || []).filter(
-      r => r.sourceId !== id && r.targetId !== id
+      r => !(r.projectId === projectId && (r.sourceId === id || r.targetId === id))
     );
 
-    // Limpiar líderes o fundadores que referencien al personaje eliminado en organizaciones
+    // Limpiar líderes o fundadores que referencien al personaje en organizaciones de este proyecto
     (this.data.groups || []).forEach(g => {
-      if (g.leaderId === id) g.leaderId = null;
-      if (g.founderId === id) g.founderId = null;
+      if (g.projectId === projectId) {
+        if (g.leaderId === id) g.leaderId = null;
+        if (g.founderId === id) g.founderId = null;
+      }
     });
 
     this.touchProject(projectId);
@@ -358,9 +360,25 @@ class Store {
     return (this.data.groups || []).find(g => g.id === id && (!projectId || g.projectId === projectId)) || null;
   }
 
+  validateGroupReferences(params, projectId) {
+    let leaderId = params.leaderId || null;
+    let founderId = params.founderId || null;
+
+    if (leaderId) {
+      const leaderChar = this.getCharacter(leaderId, projectId);
+      if (!leaderChar) leaderId = null;
+    }
+    if (founderId) {
+      const founderChar = this.getCharacter(founderId, projectId);
+      if (!founderChar) founderId = null;
+    }
+    return { leaderId, founderId };
+  }
+
   createGroup(params) {
     const projectId = params.projectId || this.activeProjectId;
-    const group = createGroup({ ...params, projectId });
+    const { leaderId, founderId } = this.validateGroupReferences(params, projectId);
+    const group = createGroup({ ...params, projectId, leaderId, founderId });
     if (!this.data.groups) this.data.groups = [];
     this.data.groups.push(group);
     this.touchProject(projectId);
@@ -371,7 +389,16 @@ class Store {
   updateGroup(id, patch) {
     const group = this.getGroup(id);
     if (!group) return null;
-    Object.assign(group, patch, { updatedAt: new Date().toISOString() });
+    const sanitizedPatch = { ...patch };
+    if (patch.leaderId !== undefined || patch.founderId !== undefined) {
+      const { leaderId, founderId } = this.validateGroupReferences({
+        leaderId: patch.leaderId !== undefined ? patch.leaderId : group.leaderId,
+        founderId: patch.founderId !== undefined ? patch.founderId : group.founderId
+      }, group.projectId);
+      if (patch.leaderId !== undefined) sanitizedPatch.leaderId = leaderId;
+      if (patch.founderId !== undefined) sanitizedPatch.founderId = founderId;
+    }
+    Object.assign(group, sanitizedPatch, { updatedAt: new Date().toISOString() });
     this.touchProject(group.projectId);
     this.save();
     return group;
@@ -383,9 +410,9 @@ class Store {
     const projectId = group.projectId;
     this.data.groups = (this.data.groups || []).filter(g => g.id !== id);
 
-    // Eliminar relaciones vinculadas a la organización
+    // Eliminar relaciones vinculadas a la organización en este proyecto
     this.data.relationships = (this.data.relationships || []).filter(
-      r => r.sourceId !== id && r.targetId !== id
+      r => !(r.projectId === projectId && (r.sourceId === id || r.targetId === id))
     );
 
     this.touchProject(projectId);
@@ -498,21 +525,6 @@ class Store {
         type: 'group',
         original: group
       };
-    }
-    // Extensibilidad futura (lugares, artefactos, etc.)
-    if (this.data.places) {
-      const place = this.data.places.find(p => p.id === id && (!projectId || p.projectId === projectId));
-      if (place) {
-        return {
-          id: place.id,
-          projectId: place.projectId,
-          name: place.name,
-          subtitle: place.type,
-          color: place.color || '#10B981',
-          type: 'place',
-          original: place
-        };
-      }
     }
     return null;
   }
@@ -880,25 +892,87 @@ class Store {
   importData(jsonString) {
     try {
       const parsed = JSON.parse(jsonString);
-      if (parsed && Array.isArray(parsed.projects)) {
-        this.schemaVersion = parsed.schemaVersion || CURRENT_SCHEMA_VERSION;
-        this.data = {
-          projects: parsed.projects || [],
-          chapters: parsed.chapters || [],
-          characters: parsed.characters || [],
-          notes: parsed.notes || [],
-          groups: parsed.groups || [],
-          relationships: parsed.relationships || []
-        };
-        if (this.data.projects.length > 0) {
-          this.activeProjectId = this.data.projects[0].id;
-        } else {
-          this.activeProjectId = null;
-        }
-        this.save();
-        return true;
+      if (!parsed || !Array.isArray(parsed.projects)) {
+        return false;
       }
-      return false;
+      this.schemaVersion = parsed.schemaVersion || CURRENT_SCHEMA_VERSION;
+
+      const projects = (parsed.projects || []).filter(p => p && p.id);
+      const projectIds = new Set(projects.map(p => p.id));
+
+      const chapters = (parsed.chapters || []).filter(c => c && c.id && projectIds.has(c.projectId));
+      const characters = (parsed.characters || []).filter(c => c && c.id && projectIds.has(c.projectId));
+      const notes = (parsed.notes || []).filter(n => n && n.id && projectIds.has(n.projectId));
+
+      // Mapeo de personajes por proyecto
+      const charMap = new Map();
+      characters.forEach(c => {
+        if (!charMap.has(c.projectId)) charMap.set(c.projectId, new Set());
+        charMap.get(c.projectId).add(c.id);
+      });
+
+      // Sanitizar grupos: limpiar founderId o leaderId si no existen o son de otro proyecto
+      const groups = (parsed.groups || [])
+        .filter(g => g && g.id && projectIds.has(g.projectId))
+        .map(g => {
+          const charsInProj = charMap.get(g.projectId);
+          const validLeader = g.leaderId && charsInProj && charsInProj.has(g.leaderId) ? g.leaderId : null;
+          const validFounder = g.founderId && charsInProj && charsInProj.has(g.founderId) ? g.founderId : null;
+          return {
+            ...g,
+            leaderId: validLeader,
+            founderId: validFounder
+          };
+        });
+
+      const groupMap = new Map();
+      groups.forEach(g => {
+        if (!groupMap.has(g.projectId)) groupMap.set(g.projectId, new Set());
+        groupMap.get(g.projectId).add(g.id);
+      });
+
+      // Validar relaciones: descartar relaciones con entidades inexistentes, cross-project o tipos inválidos
+      const relationships = (parsed.relationships || []).filter(r => {
+        if (!r || !r.id || !projectIds.has(r.projectId)) return false;
+        if (!r.sourceId || !r.targetId || r.sourceId === r.targetId) return false;
+
+        const charsInProj = charMap.get(r.projectId);
+        const groupsInProj = groupMap.get(r.projectId);
+
+        const isSourceChar = charsInProj && charsInProj.has(r.sourceId);
+        const isSourceGroup = groupsInProj && groupsInProj.has(r.sourceId);
+        const isTargetChar = charsInProj && charsInProj.has(r.targetId);
+        const isTargetGroup = groupsInProj && groupsInProj.has(r.targetId);
+
+        // Ambas entidades deben existir en el mismo proyecto
+        if ((!isSourceChar && !isSourceGroup) || (!isTargetChar && !isTargetGroup)) {
+          return false;
+        }
+
+        // Si sourceType o targetType están especificados pero discrepan de la entidad real, descartar
+        if (r.sourceType === 'character' && !isSourceChar) return false;
+        if (r.sourceType === 'group' && !isSourceGroup) return false;
+        if (r.targetType === 'character' && !isTargetChar) return false;
+        if (r.targetType === 'group' && !isTargetGroup) return false;
+
+        return true;
+      });
+
+      this.data = {
+        projects,
+        chapters,
+        characters,
+        notes,
+        groups,
+        relationships
+      };
+      if (this.data.projects.length > 0) {
+        this.activeProjectId = this.data.projects[0].id;
+      } else {
+        this.activeProjectId = null;
+      }
+      this.save();
+      return true;
     } catch (e) {
       console.error('Error al importar datos JSON:', e);
       return false;
