@@ -121,11 +121,22 @@ export class NotesView {
         year: 'numeric'
       });
 
+      const linkedPlace = n.placeId ? store.getPlace(n.placeId, project.id) : null;
+
       return `
         <div class="card card-clickable note-card" data-note-id="${n.id}" style="display: flex; flex-direction: column; justify-content: space-between; min-height: 180px;">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-              <h2 style="font-size: 1.15rem; font-family: var(--font-serif); line-height: 1.3;">${n.title}</h2>
+              <div>
+                <h2 style="font-size: 1.15rem; font-family: var(--font-serif); line-height: 1.3; margin: 0;">${n.title}</h2>
+                ${linkedPlace ? `
+                  <div style="margin-top: 4px;">
+                    <span class="place-badge place-cat-${linkedPlace.category}" style="font-size: 0.6875rem;">
+                      ${linkedPlace.mapData?.icon || '📍'} ${linkedPlace.name}
+                    </span>
+                  </div>
+                ` : ''}
+              </div>
               <button class="btn btn-subtle btn-icon btn-sm btn-delete-note" data-note-id="${n.id}" title="Eliminar nota">
                 <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
@@ -235,6 +246,7 @@ export class NotesView {
 
   openNoteModal(note, projectId) {
     const isEditing = !!note;
+    const places = store.getPlaces(projectId);
 
     modal.open({
       title: isEditing ? 'Editar nota' : 'Nueva nota creativa',
@@ -243,6 +255,18 @@ export class NotesView {
           <div class="form-group">
             <label class="form-label" for="note-title">Título de la nota *</label>
             <input type="text" id="note-title" class="form-input" value="${note ? note.title : ''}" placeholder="Ej: Las leyes de la alquimia lunar" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="note-place">Lugar vinculado (Opcional)</label>
+            <select id="note-place" class="form-input">
+              <option value="">-- Sin lugar asociado --</option>
+              ${places.map(p => `
+                <option value="${p.id}" ${note && note.placeId === p.id ? 'selected' : ''}>
+                  ${p.mapData?.icon || '📍'} ${p.name} (${p.type})
+                </option>
+              `).join('')}
+            </select>
           </div>
 
           <div class="form-group">
@@ -262,6 +286,7 @@ export class NotesView {
         const titleInput = modalEl.querySelector('#note-title');
         const contentInput = modalEl.querySelector('#note-content');
         const tagsInput = modalEl.querySelector('#note-tags');
+        const placeSelect = modalEl.querySelector('#note-place');
 
         const title = titleInput.value.trim();
         if (!title) {
@@ -275,10 +300,13 @@ export class NotesView {
           .map(t => t.trim().toLowerCase())
           .filter(t => t.length > 0);
 
+        const placeId = placeSelect?.value || null;
+
         const data = {
           title,
           content: contentInput.value.trim(),
-          tags
+          tags,
+          placeId
         };
 
         if (isEditing) {

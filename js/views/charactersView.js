@@ -358,6 +358,12 @@ export class CharactersView {
                 const grp = store.getGroup(entId);
                 if (grp) this.app.views.relationships.openGroupModal(grp, projectId);
               }, 150);
+            } else if (entType === 'place') {
+              this.app.navigate('world', projectId);
+              setTimeout(() => {
+                const pl = store.getPlace(entId, projectId);
+                if (pl) this.app.views.world.openPlaceDetailModal(pl, projectId);
+              }, 150);
             }
           });
         });
@@ -418,7 +424,7 @@ export class CharactersView {
       <div style="margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border-subtle);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">
-            Vínculos, Familia y Casas (${rels.length})
+            Vínculos, Familia, Casas y Lugares (${rels.length})
           </span>
           <button type="button" class="btn btn-subtle btn-sm" id="btn-char-add-rel" style="padding: 2px 8px; font-size: 0.75rem;">
             + Vincular relación
@@ -427,7 +433,7 @@ export class CharactersView {
 
         ${rels.length === 0 ? `
           <div style="font-size: 0.8125rem; color: var(--text-muted); font-style: italic;">
-            Este personaje aún no tiene vínculos registrados. Pulsa en <strong>+ Vincular relación</strong> para añadir familia, aliados o facciones.
+            Este personaje aún no tiene vínculos registrados. Pulsa en <strong>+ Vincular relación</strong> para añadir familia, aliados, facciones o lugares.
           </div>
         ` : `
           <div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
@@ -435,15 +441,16 @@ export class CharactersView {
               const ent = r.otherEntity;
               if (!ent) return '';
               const isGrp = ent.type === 'group';
-              const roleLabel = isGrp
+              const isPlace = ent.type === 'place';
+              const roleLabel = isGrp || isPlace
                 ? (r.myRole || r.otherRole || r.relationship.type)
                 : (r.otherRole || r.relationship.type);
 
               return `
                 <div class="card card-clickable char-modal-rel-item" data-entity-id="${escapeHtml(ent.id)}" data-entity-type="${escapeHtml(ent.type)}" style="padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem;">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="width: 22px; height: 22px; border-radius: ${isGrp ? '4px' : '50%'}; background-color: ${escapeHtml(ent.color)}; color: #FFF; font-size: 0.6875rem; font-weight: bold; display: flex; align-items: center; justify-content: center;">
-                      ${escapeHtml(ent.name.charAt(0))}
+                    <div style="width: 22px; height: 22px; border-radius: ${isPlace ? '6px' : (isGrp ? '4px' : '50%')}; background-color: ${escapeHtml(ent.color)}; color: #FFF; font-size: 0.6875rem; font-weight: bold; display: flex; align-items: center; justify-content: center;">
+                      ${isPlace ? '📍' : escapeHtml(ent.name.charAt(0))}
                     </div>
                     <div>
                       <strong>${escapeHtml(ent.name)}</strong>

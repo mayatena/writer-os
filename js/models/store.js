@@ -1,12 +1,12 @@
 /* Writer OS — Almacén Central Reactivo y Persistencia */
 
 import { sampleProjectData } from './sampleData.js';
-import { countWords, createProject, createChapter, createCharacter, createNote, createGroup, createRelationship } from './types.js';
+import { countWords, createProject, createChapter, createCharacter, createNote, createGroup, createRelationship, createPlace } from './types.js';
 
 const STORAGE_KEY = 'writer_os_storage_v1';
 const ACTIVE_PROJECT_KEY = 'writer_os_active_project_id';
 const THEME_KEY = 'writer_os_theme';
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 class Store {
   constructor() {
@@ -18,7 +18,8 @@ class Store {
       characters: [],
       notes: [],
       groups: [],
-      relationships: []
+      relationships: [],
+      places: []
     };
     this.activeProjectId = null;
     this.theme = 'light';
@@ -47,13 +48,15 @@ class Store {
           characters: parsed.characters || [],
           notes: parsed.notes || [],
           groups: parsed.groups || [],
-          relationships: parsed.relationships || []
+          relationships: parsed.relationships || [],
+          places: parsed.places || []
         };
 
         // Migración de esquema si proviene de versión previa
         if (this.schemaVersion < CURRENT_SCHEMA_VERSION) {
           if (!this.data.groups) this.data.groups = [];
           if (!this.data.relationships) this.data.relationships = [];
+          if (!this.data.places) this.data.places = [];
           this.schemaVersion = CURRENT_SCHEMA_VERSION;
           this.save();
         }
@@ -82,7 +85,8 @@ class Store {
       characters: [...sampleProjectData.characters],
       notes: [...sampleProjectData.notes],
       groups: [...(sampleProjectData.groups || [])],
-      relationships: [...(sampleProjectData.relationships || [])]
+      relationships: [...(sampleProjectData.relationships || [])],
+      places: [...(sampleProjectData.places || [])]
     };
     this.save();
   }
@@ -198,6 +202,7 @@ class Store {
     this.data.notes = this.data.notes.filter(n => n.projectId !== id);
     this.data.groups = (this.data.groups || []).filter(g => g.projectId !== id);
     this.data.relationships = (this.data.relationships || []).filter(r => r.projectId !== id);
+    this.data.places = (this.data.places || []).filter(pl => pl.projectId !== id);
 
     if (this.activeProjectId === id) {
       this.activeProjectId = this.data.projects.length > 0 ? this.data.projects[0].id : null;
@@ -340,6 +345,13 @@ class Store {
       if (g.projectId === projectId) {
         if (g.leaderId === id) g.leaderId = null;
         if (g.founderId === id) g.founderId = null;
+      }
+    });
+
+    // Limpiar autoridades en lugares de este proyecto que referencien al personaje eliminado
+    (this.data.places || []).forEach(p => {
+      if (p.projectId === projectId && p.authorities) {
+        p.authorities = p.authorities.filter(a => a.characterId !== id);
       }
     });
 
@@ -524,6 +536,18 @@ class Store {
         color: group.color || '#4F46E5',
         type: 'group',
         original: group
+      };
+    }
+    const place = this.getPlace(id, projectId);
+    if (place) {
+      return {
+        id: place.id,
+        projectId: place.projectId,
+        name: place.name,
+        subtitle: place.type,
+        color: place.color || '#0D9488',
+        type: 'place',
+        original: place
       };
     }
     return null;
@@ -733,6 +757,230 @@ class Store {
   }
 
   /* ==========================================================================
+     Mundo y Lugares (Worldbuilding)
+     ========================================================================== */
+  getPlaces(projectId = this.activeProjectId) {
+    return (this.data.places || [])
+      .filter(p => p.projectId === projectId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }
+
+  getPlace(id, projectId = null) {
+    return (this.data.places || []).find(p => p.id === id && (!projectId || p.projectId === projectId)) || null;
+  }
+
+  isPlaceAncestor(potentialAncestorId, targetId, projectId = this.activeProjectId) {
+    if (!potentialAncestorId || !targetId) return false;
+    if (potentialAncestorId === targetId) return true;
+
+    let current = this.getPlace(targetId, projectId);
+    const visited = new Set([targetId]);
+
+    while (current && current.parentId) {
+      if (current.parentId === potentialAncestorId) return true;
+      if (visited.has(current.parentId)) break; // Prevenir bucle infinito ante ciclos preexistentes
+      visited.add(current.parentId);
+      current = this.getPlace(current.parentId, projectId);
+    }
+    return false;
+  }
+
+  validatePlace(params, projectId, currentPlaceId = null) {
+    if (!projectId) return { valid: false, error: 'Se requiere un identificador de proyecto válido' };
+    if (!params.name || !params.name.trim()) return { valid: false, error: 'El lugar debe tener un nombre' };
+
+    // Validar parentId
+    if (params.parentId) {
+      if (currentPlaceId && params.parentId === currentPlaceId) {
+        return { valid: false, error: 'Un lugar no puede ser padre de sí mismo' };
+      }
+      const parent = this.getPlace(params.parentId, projectId);
+      if (!parent) {
+        return { valid: false, error: 'El lugar padre no existe en este proyecto' };
+      }
+      // Detección de ciclos: el nuevo padre no puede ser descendiente del lugar actual
+      if (currentPlaceId && this.isPlaceAncestor(currentPlaceId, params.parentId, projectId)) {
+        return { valid: false, error: 'La asignación crearía un ciclo jerárquico no permitido' };
+      }
+    }
+
+    // Validar autoridades
+    if (params.authorities && Array.isArray(params.authorities)) {
+      for (const auth of params.authorities) {
+        if (auth.characterId && !this.getCharacter(auth.characterId, projectId)) {
+          return { valid: false, error: 'Una autoridad hace referencia a un personaje inexistente o foráneo' };
+        }
+      }
+    }
+
+    // Sanitizar extremos lineales si existen
+    if (params.specificData) {
+      if (params.specificData.originPlaceId && !this.getPlace(params.specificData.originPlaceId, projectId)) {
+        params.specificData.originPlaceId = null;
+      }
+      if (params.specificData.destinationPlaceId && !this.getPlace(params.specificData.destinationPlaceId, projectId)) {
+        params.specificData.destinationPlaceId = null;
+      }
+      if (params.specificData.mouthPlaceId && !this.getPlace(params.specificData.mouthPlaceId, projectId)) {
+        params.specificData.mouthPlaceId = null;
+      }
+    }
+
+    return { valid: true };
+  }
+
+  createPlace(params) {
+    const projectId = params.projectId || this.activeProjectId;
+    const validation = this.validatePlace(params, projectId);
+    if (!validation.valid) {
+      console.warn('createPlace rechazada:', validation.error);
+      return null;
+    }
+
+    const place = createPlace({ ...params, projectId });
+    if (!this.data.places) this.data.places = [];
+    this.data.places.push(place);
+    this.touchProject(projectId);
+    this.save();
+    return place;
+  }
+
+  updatePlace(id, patch) {
+    const place = this.getPlace(id);
+    if (!place) return null;
+
+    const merged = { ...place, ...patch };
+    const validation = this.validatePlace(merged, place.projectId, id);
+    if (!validation.valid) {
+      console.warn('updatePlace rechazada:', validation.error);
+      return null;
+    }
+
+    Object.assign(place, patch, { updatedAt: new Date().toISOString() });
+    this.touchProject(place.projectId);
+    this.save();
+    return place;
+  }
+
+  deletePlace(id) {
+    const place = this.getPlace(id);
+    if (!place) return;
+    const projectId = place.projectId;
+
+    // Eliminar el lugar
+    this.data.places = (this.data.places || []).filter(p => p.id !== id);
+
+    // 1. Limpiar relaciones donde el lugar sea origen o destino en este proyecto
+    this.data.relationships = (this.data.relationships || []).filter(
+      r => !(r.projectId === projectId && (r.sourceId === id || r.targetId === id))
+    );
+
+    // 2. Desvincular lugares hijos que tuvieran este lugar como padre
+    (this.data.places || []).forEach(p => {
+      if (p.projectId === projectId && p.parentId === id) {
+        p.parentId = null;
+      }
+      // Limpiar también referencias en specificData (vías, ríos)
+      if (p.projectId === projectId && p.specificData) {
+        if (p.specificData.originPlaceId === id) p.specificData.originPlaceId = null;
+        if (p.specificData.destinationPlaceId === id) p.specificData.destinationPlaceId = null;
+        if (p.specificData.mouthPlaceId === id) p.specificData.mouthPlaceId = null;
+      }
+    });
+
+    // 3. Desvincular notas asociadas a este lugar en este proyecto
+    (this.data.notes || []).forEach(n => {
+      if (n.projectId === projectId && n.placeId === id) {
+        n.placeId = null;
+      }
+    });
+
+    this.touchProject(projectId);
+    this.save();
+  }
+
+  getPlaceHierarchy(projectId = this.activeProjectId) {
+    const allPlaces = this.getPlaces(projectId);
+    const placeMap = new Map();
+    allPlaces.forEach(p => placeMap.set(p.id, { ...p, children: [] }));
+
+    const roots = [];
+    placeMap.forEach(place => {
+      if (place.parentId && placeMap.has(place.parentId)) {
+        placeMap.get(place.parentId).children.push(place);
+      } else {
+        roots.push(place);
+      }
+    });
+
+    // Ordenar recursivamente los hijos por nombre
+    const sortNodes = (nodes) => {
+      nodes.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      nodes.forEach(n => {
+        if (n.children && n.children.length > 0) sortNodes(n.children);
+      });
+    };
+    sortNodes(roots);
+
+    return roots;
+  }
+
+  getPlaceBreadcrumbs(placeId, projectId = this.activeProjectId) {
+    const breadcrumbs = [];
+    let current = this.getPlace(placeId, projectId);
+    const visited = new Set();
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id);
+      breadcrumbs.unshift(current);
+      if (!current.parentId) break;
+      current = this.getPlace(current.parentId, projectId);
+    }
+    return breadcrumbs;
+  }
+
+  getPlaceDescendants(placeId, projectId = this.activeProjectId) {
+    const descendants = [];
+    const allPlaces = this.getPlaces(projectId);
+    const queue = [placeId];
+    const visited = new Set([placeId]);
+
+    while (queue.length > 0) {
+      const currentId = queue.shift();
+      const children = allPlaces.filter(p => p.parentId === currentId && !visited.has(p.id));
+      children.forEach(ch => {
+        visited.add(ch.id);
+        descendants.push(ch);
+        queue.push(ch.id);
+      });
+    }
+    return descendants;
+  }
+
+  getPlaceRelationships(placeId, projectId = this.activeProjectId) {
+    const allRels = this.getRelationships(projectId);
+    return allRels.filter(r => r.sourceId === placeId || r.targetId === placeId).map(rel => {
+      const isSource = rel.sourceId === placeId;
+      const otherId = isSource ? rel.targetId : rel.sourceId;
+      const otherEntity = this.getEntity(otherId, projectId);
+      
+      const myRole = isSource ? (rel.roleSource || rel.type) : (rel.roleTarget || rel.roleSource || rel.type);
+      const otherRole = isSource ? (rel.roleTarget || rel.roleSource || rel.type) : (rel.roleSource || rel.type);
+
+      return {
+        relationship: rel,
+        otherEntity,
+        isSource,
+        myRole,
+        otherRole
+      };
+    }).filter(item => item.otherEntity !== null);
+  }
+
+  getNotesByPlace(placeId, projectId = this.activeProjectId) {
+    return (this.data.notes || []).filter(n => n.projectId === projectId && n.placeId === placeId);
+  }
+
+  /* ==========================================================================
      Notas
      ========================================================================== */
   getNotes(projectId = this.activeProjectId) {
@@ -747,7 +995,11 @@ class Store {
 
   createNote(params) {
     const projectId = params.projectId || this.activeProjectId;
-    const note = createNote({ ...params, projectId });
+    let placeId = params.placeId || null;
+    if (placeId && !this.getPlace(placeId, projectId)) {
+      placeId = null;
+    }
+    const note = createNote({ ...params, projectId, placeId });
     if (!this.data.notes) this.data.notes = [];
     this.data.notes.push(note);
     this.touchProject(projectId);
@@ -758,7 +1010,13 @@ class Store {
   updateNote(id, patch) {
     const note = this.getNote(id);
     if (!note) return null;
-    Object.assign(note, patch, { updatedAt: new Date().toISOString() });
+    const sanitizedPatch = { ...patch };
+    if (patch.placeId !== undefined) {
+      if (patch.placeId && !this.getPlace(patch.placeId, note.projectId)) {
+        sanitizedPatch.placeId = null;
+      }
+    }
+    Object.assign(note, sanitizedPatch, { updatedAt: new Date().toISOString() });
     this.touchProject(note.projectId);
     this.save();
     return note;
@@ -779,7 +1037,7 @@ class Store {
   getProjectStats(projectId = this.activeProjectId) {
     const project = this.getProject(projectId);
     if (!project) {
-      return { totalWords: 0, totalChapters: 0, totalCharacters: 0, totalNotes: 0, totalGroups: 0, totalRelationships: 0 };
+      return { totalWords: 0, totalChapters: 0, totalCharacters: 0, totalNotes: 0, totalGroups: 0, totalRelationships: 0, totalPlaces: 0 };
     }
     const chapters = this.getChapters(projectId);
     const totalWords = chapters.reduce((sum, ch) => sum + countWords(ch.content), 0);
@@ -788,6 +1046,7 @@ class Store {
     const totalNotes = this.getNotes(projectId).length;
     const totalGroups = this.getGroups(projectId).length;
     const totalRelationships = this.getRelationships(projectId).length;
+    const totalPlaces = this.getPlaces(projectId).length;
 
     return {
       totalWords,
@@ -796,6 +1055,7 @@ class Store {
       totalNotes,
       totalGroups,
       totalRelationships,
+      totalPlaces,
       lastModified: project.updatedAt
     };
   }
@@ -858,6 +1118,18 @@ class Store {
         g.type.toLowerCase().includes(q)
       );
 
+    const places = (this.data.places || [])
+      .filter(pl => !activeId || pl.projectId === activeId)
+      .filter(pl =>
+        pl.name.toLowerCase().includes(q) ||
+        (pl.description && pl.description.toLowerCase().includes(q)) ||
+        (pl.history && pl.history.toLowerCase().includes(q)) ||
+        (pl.notes && pl.notes.toLowerCase().includes(q)) ||
+        (pl.tags && pl.tags.some(t => t.toLowerCase().includes(q))) ||
+        pl.type.toLowerCase().includes(q) ||
+        pl.category.toLowerCase().includes(q)
+      );
+
     const relationships = (this.data.relationships || [])
       .filter(r => !activeId || r.projectId === activeId)
       .filter(r => {
@@ -875,7 +1147,7 @@ class Store {
         );
       });
 
-    return { projects, chapters, characters, notes, groups, relationships };
+    return { projects, chapters, characters, notes, groups, relationships, places };
   }
 
   /* ==========================================================================
@@ -885,7 +1157,13 @@ class Store {
     return JSON.stringify({
       schemaVersion: this.schemaVersion || CURRENT_SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
-      ...this.data
+      projects: this.data.projects,
+      chapters: this.data.chapters,
+      characters: this.data.characters,
+      notes: this.data.notes,
+      groups: this.data.groups,
+      relationships: this.data.relationships,
+      places: this.data.places || []
     }, null, 2);
   }
 
@@ -902,7 +1180,6 @@ class Store {
 
       const chapters = (parsed.chapters || []).filter(c => c && c.id && projectIds.has(c.projectId));
       const characters = (parsed.characters || []).filter(c => c && c.id && projectIds.has(c.projectId));
-      const notes = (parsed.notes || []).filter(n => n && n.id && projectIds.has(n.projectId));
 
       // Mapeo de personajes por proyecto
       const charMap = new Map();
@@ -931,29 +1208,100 @@ class Store {
         groupMap.get(g.projectId).add(g.id);
       });
 
-      // Validar relaciones: descartar relaciones con entidades inexistentes, cross-project o tipos inválidos
+      // Validar y sanear lugares
+      const rawPlaces = (parsed.places || []).filter(pl => pl && pl.id && projectIds.has(pl.projectId));
+      const placeMapByProj = new Map();
+      rawPlaces.forEach(pl => {
+        if (!placeMapByProj.has(pl.projectId)) placeMapByProj.set(pl.projectId, new Set());
+        placeMapByProj.get(pl.projectId).add(pl.id);
+      });
+
+      const places = rawPlaces.map(pl => {
+        const projPlaces = placeMapByProj.get(pl.projectId);
+        const charsInProj = charMap.get(pl.projectId);
+
+        // Sanear parentId: debe existir en el mismo proyecto y no ser él mismo
+        let parentId = pl.parentId && projPlaces && projPlaces.has(pl.parentId) && pl.parentId !== pl.id
+          ? pl.parentId
+          : null;
+
+        // Sanear autoridades: personajes deben existir en el proyecto
+        const authorities = (pl.authorities || []).filter(a => a && a.characterId && charsInProj && charsInProj.has(a.characterId));
+
+        // Sanear referencias lineales en specificData
+        const spec = { ...(pl.specificData || {}) };
+        if (spec.originPlaceId && (!projPlaces || !projPlaces.has(spec.originPlaceId))) spec.originPlaceId = null;
+        if (spec.destinationPlaceId && (!projPlaces || !projPlaces.has(spec.destinationPlaceId))) spec.destinationPlaceId = null;
+        if (spec.mouthPlaceId && (!projPlaces || !projPlaces.has(spec.mouthPlaceId))) spec.mouthPlaceId = null;
+
+        return {
+          ...pl,
+          parentId,
+          authorities,
+          specificData: spec
+        };
+      });
+
+      // Re-comprobar ciclos simples en jerarquía tras sanitización
+      const finalPlacesMap = new Map(places.map(p => [p.id, p]));
+      places.forEach(p => {
+        if (p.parentId) {
+          let curr = finalPlacesMap.get(p.parentId);
+          const visited = new Set([p.id]);
+          let hasCycle = false;
+          while (curr && curr.parentId) {
+            if (visited.has(curr.parentId)) {
+              hasCycle = true;
+              break;
+            }
+            visited.add(curr.id);
+            curr = finalPlacesMap.get(curr.parentId);
+          }
+          if (hasCycle) p.parentId = null;
+        }
+      });
+
+      // Sanitizar notas: placeId debe existir en el mismo proyecto si viene informado
+      const notes = (parsed.notes || [])
+        .filter(n => n && n.id && projectIds.has(n.projectId))
+        .map(n => {
+          const projPlaces = placeMapByProj.get(n.projectId);
+          const validPlaceId = n.placeId && projPlaces && projPlaces.has(n.placeId) ? n.placeId : null;
+          return {
+            ...n,
+            placeId: validPlaceId
+          };
+        });
+
+      // Validar relaciones: soportar character, group y place
       const relationships = (parsed.relationships || []).filter(r => {
         if (!r || !r.id || !projectIds.has(r.projectId)) return false;
         if (!r.sourceId || !r.targetId || r.sourceId === r.targetId) return false;
 
         const charsInProj = charMap.get(r.projectId);
         const groupsInProj = groupMap.get(r.projectId);
+        const placesInProj = placeMapByProj.get(r.projectId);
 
         const isSourceChar = charsInProj && charsInProj.has(r.sourceId);
         const isSourceGroup = groupsInProj && groupsInProj.has(r.sourceId);
+        const isSourcePlace = placesInProj && placesInProj.has(r.sourceId);
+
         const isTargetChar = charsInProj && charsInProj.has(r.targetId);
         const isTargetGroup = groupsInProj && groupsInProj.has(r.targetId);
+        const isTargetPlace = placesInProj && placesInProj.has(r.targetId);
 
         // Ambas entidades deben existir en el mismo proyecto
-        if ((!isSourceChar && !isSourceGroup) || (!isTargetChar && !isTargetGroup)) {
+        if ((!isSourceChar && !isSourceGroup && !isSourcePlace) || (!isTargetChar && !isTargetGroup && !isTargetPlace)) {
           return false;
         }
 
         // Si sourceType o targetType están especificados pero discrepan de la entidad real, descartar
         if (r.sourceType === 'character' && !isSourceChar) return false;
         if (r.sourceType === 'group' && !isSourceGroup) return false;
+        if (r.sourceType === 'place' && !isSourcePlace) return false;
         if (r.targetType === 'character' && !isTargetChar) return false;
         if (r.targetType === 'group' && !isTargetGroup) return false;
+        if (r.targetType === 'place' && !isTargetPlace) return false;
 
         return true;
       });
@@ -964,7 +1312,8 @@ class Store {
         characters,
         notes,
         groups,
-        relationships
+        relationships,
+        places
       };
       if (this.data.projects.length > 0) {
         this.activeProjectId = this.data.projects[0].id;

@@ -20,6 +20,7 @@ export class OverviewView {
     const characters = store.getCharacters(project.id);
     const notes = store.getNotes(project.id);
     const groups = store.getGroups(project.id);
+    const places = store.getPlaces(project.id);
 
     // Calcular progreso respecto al objetivo
     const targetWords = project.targetWordCount || 50000;
@@ -61,7 +62,7 @@ export class OverviewView {
         </div>
 
         <!-- Fila de Estadísticas Clave -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl);">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-xl);">
           <div class="card" style="padding: var(--space-md);">
             <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Palabras</span>
             <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
@@ -81,7 +82,13 @@ export class OverviewView {
             </div>
           </div>
           <div class="card" style="padding: var(--space-md);">
-            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Casas y Grupos</span>
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Lugares</span>
+            <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
+              ${stats.totalPlaces || 0}
+            </div>
+          </div>
+          <div class="card" style="padding: var(--space-md);">
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Casas / Grupos</span>
             <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
               ${stats.totalGroups || 0}
             </div>
@@ -93,7 +100,7 @@ export class OverviewView {
             </div>
           </div>
           <div class="card" style="padding: var(--space-md);">
-            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Notas de Ideas</span>
+            <span style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Notas</span>
             <div style="font-size: 1.6rem; font-family: var(--font-serif); font-weight: 700; color: var(--text-primary); margin-top: 4px;">
               ${stats.totalNotes}
             </div>
@@ -239,6 +246,34 @@ export class OverviewView {
               </div>
             </div>
 
+            <!-- Mundo y Lugares -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                <h2 style="font-size: 1.15rem; font-family: var(--font-serif);">Mundo y Lugares</h2>
+                <button class="btn btn-subtle btn-sm" id="btn-view-all-world">Explorar mundo</button>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+                ${places.length === 0 ? `
+                  <div class="card" style="padding: var(--space-md); text-align: center; color: var(--text-muted); font-size: 0.8125rem;">
+                    No hay lugares registrados.
+                  </div>
+                ` : places.slice(0, 3).map(pl => `
+                  <div class="card card-clickable place-quick-row" data-place-id="${pl.id}" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="width: 26px; height: 26px; border-radius: 6px; background-color: ${pl.color || 'var(--accent)'}20; color: ${pl.color || 'var(--accent)'}; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
+                        ${pl.mapData?.icon || '📍'}
+                      </div>
+                      <div>
+                        <div style="font-size: 0.875rem; font-weight: 600;">${pl.name}</div>
+                        <div style="font-size: 0.6875rem; color: var(--text-muted);">${pl.type}</div>
+                      </div>
+                    </div>
+                    <span class="place-badge place-cat-${pl.category}" style="font-size: 0.625rem;">${pl.category}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -329,6 +364,19 @@ export class OverviewView {
     container.querySelectorAll('.group-quick-row').forEach(row => {
       row.addEventListener('click', () => {
         this.app.navigate('relationships', project.id, { mode: 'structured' });
+      });
+    });
+
+    // Ver todo el mundo
+    container.querySelector('#btn-view-all-world')?.addEventListener('click', () => {
+      this.app.navigate('world', project.id);
+    });
+
+    // Clic en lugar rápido
+    container.querySelectorAll('.place-quick-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const placeId = row.getAttribute('data-place-id');
+        this.app.navigate('world', project.id, { placeId });
       });
     });
   }

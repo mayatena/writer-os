@@ -1190,9 +1190,10 @@ export class RelationshipsView {
     const isEditing = !!relationship;
     const characters = store.getCharacters(projectId);
     const groups = store.getGroups(projectId);
+    const places = store.getPlaces(projectId);
 
     const initialSourceId = relationship ? relationship.sourceId : (defaultValues.sourceId || (characters[0] ? characters[0].id : ''));
-    const initialTargetId = relationship ? relationship.targetId : (defaultValues.targetId || (characters[1] ? characters[1].id : (groups[0] ? groups[0].id : '')));
+    const initialTargetId = relationship ? relationship.targetId : (defaultValues.targetId || (characters[1] ? characters[1].id : (groups[0] ? groups[0].id : (places[0] ? places[0].id : ''))));
     const initialCategory = relationship ? relationship.category : (defaultValues.category || 'familiar');
 
     modal.open({
@@ -1213,6 +1214,11 @@ export class RelationshipsView {
                     ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialSourceId === g.id ? 'selected' : ''}>🏛️ ${escapeHtml(g.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
+                ${places.length > 0 ? `
+                  <optgroup label="Mundo y Lugares">
+                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialSourceId === p.id ? 'selected' : ''}>📍 ${escapeHtml(p.name)}</option>`).join('')}
+                  </optgroup>
+                ` : ''}
               </select>
             </div>
 
@@ -1225,6 +1231,11 @@ export class RelationshipsView {
                 ${groups.length > 0 ? `
                   <optgroup label="Casas y Organizaciones">
                     ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialTargetId === g.id ? 'selected' : ''}>🏛️ ${escapeHtml(g.name)}</option>`).join('')}
+                  </optgroup>
+                ` : ''}
+                ${places.length > 0 ? `
+                  <optgroup label="Mundo y Lugares">
+                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialTargetId === p.id ? 'selected' : ''}>📍 ${escapeHtml(p.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
               </select>
@@ -1241,6 +1252,7 @@ export class RelationshipsView {
                 <option value="social" ${initialCategory === 'social' ? 'selected' : ''}>Social (Amistad, Mentor, Rivalidad)</option>
                 <option value="politica" ${initialCategory === 'politica' ? 'selected' : ''}>Política (Alianza, Vasallaje, Mando)</option>
                 <option value="pertenencia" ${initialCategory === 'pertenencia' ? 'selected' : ''}>Pertenencia a Grupo / Casa</option>
+                <option value="espacial" ${initialCategory === 'espacial' ? 'selected' : ''}>Espacial (Territorio, Base, Conexión)</option>
               </select>
             </div>
 
@@ -1344,6 +1356,15 @@ export class RelationshipsView {
           ],
           pertenencia: [
             { id: 'pertenencia', name: 'Membresía / Cargo', symmetric: false, src: 'Miembro / Cargo', tgt: 'Organización' }
+          ],
+          espacial: [
+            { id: 'limita_con', name: 'Limita con / Fronterizo', symmetric: true, src: 'Lugar fronterizo', tgt: 'Lugar fronterizo' },
+            { id: 'conecta_con', name: 'Conecta con / Comunica', symmetric: true, src: 'Punto de conexión', tgt: 'Punto de conexión' },
+            { id: 'cerca_de', name: 'Próximo / Cerca de', symmetric: true, src: 'Lugar cercano', tgt: 'Lugar cercano' },
+            { id: 'sede_en', name: 'Sede / Base territorial', symmetric: false, src: 'Organización / Personaje', tgt: 'Lugar sede' },
+            { id: 'gobierno_lugar', name: 'Gobierna / Jurisdicción', symmetric: false, src: 'Gobernante', tgt: 'Territorio bajo mando' },
+            { id: 'residencia', name: 'Reside en / Hogar', symmetric: false, src: 'Residente', tgt: 'Lugar de residencia' },
+            { id: 'trabaja_en', name: 'Trabaja en / Oficio', symmetric: false, src: 'Trabajador/a', tgt: 'Lugar de trabajo' }
           ]
         };
 
@@ -1410,11 +1431,17 @@ export class RelationshipsView {
           }
         }
 
+        const resolveType = (prefix) => {
+          if (prefix === 'place') return 'place';
+          if (prefix === 'group') return 'group';
+          return 'character';
+        };
+
         const data = {
           sourceId,
-          sourceType: sourceTypePrefix === 'group' ? 'group' : 'character',
+          sourceType: resolveType(sourceTypePrefix),
           targetId,
-          targetType: targetTypePrefix === 'group' ? 'group' : 'character',
+          targetType: resolveType(targetTypePrefix),
           category,
           type,
           roleSource,

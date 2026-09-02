@@ -42,6 +42,23 @@
     - **Red de Conexiones**: Visualizador interactivo de grafo en Canvas HTML5 con nodos arrastrables, distinción por figuras y colores, flechas direccionales, panel lateral de detalles y controles de centrado y filtro.
     - **Linaje y Familia**: Árbol genealógico generacional multinivel (ancestros y abuelos, progenitores y tutores, generación central con hermanos y cónyuges/parejas, e hijos y nietos) con recentrado instantáneo al hacer clic en cualquier miembro familiar.
   - **Casas y Organizaciones Narrativas**: Creación de casas nobles, dinastías, facciones, gremios, clanes y cultos, con lema heráldico, líder, fundador, miembros con cargo fechado y tratados políticos inter-grupo.
+- **Mundo y Lugares (Worldbuilding Espacial y Territorial)**:
+  - **Cinco categorías fundamentales**:
+    - *Geografía Mayor*: Planetas, continentes, reinos, imperios, provincias, regiones y territorios.
+    - *Asentamientos y Edificios*: Ciudades, pueblos, fortalezas, castillos, palacios, distritos, templos y aposentos.
+    - *Geografía Física y Natural*: Mares, océanos, ríos (con origen y desembocadura), cordilleras, montañas, bosques, valles y desiertos.
+    - *Infraestructura y Vías*: Carreteras, calzadas (con origen y destino), puentes, puertos, rutas comerciales y canales.
+    - *Lugares Especiales*: Portales mágicos, ruinas antiguas, anomalías, santuarios y zonas de peligro sobrenatural.
+  - **Tres modos de exploración integrados**:
+    - **Explorador por Categorías**: Filtros rápidos por las 5 categorías, buscador en vivo, ordenación, badges cromáticos, tipo específico, estado y métricas de sub-lugares y autoridades.
+    - **Árbol Jerárquico Interactivo**: Visualización arbórea multinivel (con anidamiento arbitrario y prevención estricta de bucles/ciclos directos o indirectos), migas de pan automáticas, botones de plegado/desplegado y adición rápida de sub-lugares.
+    - **Red Conceptual**: Visualizador de grafo en Canvas 2D interactivo con nodos coloreados por categoría, aristas espaciales y territoriales, arrastre fluido, recentrado y panel inspector de conexiones.
+  - **Ficha Detallada del Lugar**: Modal con migas de pan de ancestros, propiedades dinámicas contextuales, sub-lugares contenidos, panel de autoridades vinculadas (con salto a personajes), relaciones espaciales directas y notas creativas asociadas.
+  - **Autoridades y Responsabilidades**: Asignación de gobernantes, vigías, comandantes o custodios sin duplicar datos del personaje, especificando cargo/título y tipo de responsabilidad (civil, militar, religiosa, propietaria).
+  - **Integración Transversal y Relaciones Espaciales**:
+    - Relaciones multi-entidad en el grafo: Lugar ↔ Lugar, Personaje ↔ Lugar y Grupo ↔ Lugar (ej: límites fronterizos, conexiones viales, sedes de organizaciones, gobernanza o residencia).
+    - Fichas de personajes con bloque de lugares vinculados y salto interactivo.
+    - Notas creativas con asignación opcional de lugar y badge de ubicación.
 - **Cuaderno de Notas e Ideas**:
   - Repositorio de ideas de trama, ambientación, investigación y misterios.
   - Organización por etiquetas dinámicas (#mundo, #magia, #trama, #misterio, #investigación).
@@ -90,7 +107,8 @@ writer-os/
 │   ├── layout.css               # Cabecera, navegación superior, migas de pan y pestañas
 │   ├── editor.css               # Espacio de escritura, barra de herramientas e inspector lateral
 │   ├── components.css           # Botones, formularios, modales, tarjetas, badges y toasts
-│   └── relationships.css        # Estilos para tarjetas de relación, grafo de red y árbol de linaje
+│   ├── relationships.css        # Estilos para tarjetas de relación, grafo de red y árbol de linaje
+│   └── world.css                # Estilos para explorador de lugares, árbol jerárquico y red espacial
 └── js/
     ├── app.js                   # Enrutador hash y controlador de ciclo de vida de la aplicación
     ├── models/
@@ -103,6 +121,7 @@ writer-os/
     │   ├── editorView.js        # Editor de escritura y panel contextual de escena
     │   ├── charactersView.js    # Directorio de personajes y fichas con bloque relacional
     │   ├── relationshipsView.js # Vista de relaciones (estructurada, red en canvas y linaje)
+    │   ├── worldView.js         # Vista de Mundo (explorador, árbol jerárquico y red en canvas)
     │   └── notesView.js         # Cuaderno de notas creativas y etiquetas
     └── components/
         ├── commandPalette.js    # Paleta de comandos universal y buscador global (Ctrl + K)
@@ -116,7 +135,7 @@ writer-os/
 
 La arquitectura modular de Writer OS está concebida para continuar expandiéndose progresivamente hacia las siguientes capas narrativas:
 
-- **Mundo y Lugares**: Atlas de localizaciones, ciudades, edificios, regiones y mapas interactivos conectables con escenas y personajes.
+- **Mapa Interactivo del Mundo**: Cartografía interactiva sobre el sistema de Mundo y Lugares ya implementado, con marcadores visuales, capas territoriales y niebla de exploración.
 - **Líneas Temporales y Cronología**: Gestión del tiempo del relato frente al tiempo de la historia, eras, calendarios ficticios y fechas de acontecimientos.
 - **Control de Continuidad**: Motor de coherencia narrativa para rastrear qué sabe cada personaje en cada capítulo, secretos y estado de pistas.
 - **Objetos y Artefactos Clave**: Reliquias, documentos, armas, cartas náuticas e inventario de elementos cruciales para la trama.

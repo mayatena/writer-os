@@ -251,6 +251,31 @@ class CommandPalette {
         });
       }
 
+      // Resultados en Lugares
+      if (results.places && results.places.length > 0) {
+        html += `<div class="palette-group-title">Mundo y Lugares</div>`;
+        results.places.forEach(pl => {
+          const itemIndex = this.items.length;
+          this.items.push({
+            type: 'place',
+            action: () => {
+              if (this.onActionCallback) {
+                this.onActionCallback('open-place', { placeId: pl.id, projectId: pl.projectId });
+              }
+            }
+          });
+          html += `
+            <div class="palette-item ${itemIndex === this.selectedIndex ? 'is-selected' : ''}" data-index="${itemIndex}">
+              <div class="palette-item-left">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                <span>${escapeHtml(pl.name)}</span>
+              </div>
+              <span class="palette-item-badge">${escapeHtml(pl.type || pl.category)}</span>
+            </div>
+          `;
+        });
+      }
+
       // Resultados en Proyectos
       if (results.projects.length > 0) {
         html += `<div class="palette-group-title">Proyectos</div>`;
@@ -321,6 +346,12 @@ class CommandPalette {
         action: () => this.onActionCallback?.('create-group')
       });
       actions.push({
+        title: 'Crear nuevo lugar',
+        badge: 'Acción',
+        icon: '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line>',
+        action: () => this.onActionCallback?.('create-place')
+      });
+      actions.push({
         title: 'Ir a Escribir',
         badge: 'Navegación',
         icon: '<path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle>',
@@ -343,6 +374,12 @@ class CommandPalette {
         badge: 'Navegación',
         icon: '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>',
         action: () => this.onActionCallback?.('navigate', { view: 'relationships' })
+      });
+      actions.push({
+        title: 'Ir a Mundo y Lugares',
+        badge: 'Navegación',
+        icon: '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>',
+        action: () => this.onActionCallback?.('navigate', { view: 'world' })
       });
       actions.push({
         title: 'Ir a Notas',

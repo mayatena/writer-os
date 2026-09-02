@@ -10,11 +10,12 @@ import { OverviewView } from './views/overviewView.js';
 import { EditorView } from './views/editorView.js';
 import { CharactersView } from './views/charactersView.js';
 import { RelationshipsView } from './views/relationshipsView.js';
+import { WorldView } from './views/worldView.js';
 import { NotesView } from './views/notesView.js';
 
 class App {
   constructor() {
-    this.currentView = 'projects'; // 'projects' | 'overview' | 'editor' | 'characters' | 'relationships' | 'notes'
+    this.currentView = 'projects'; // 'projects' | 'overview' | 'editor' | 'characters' | 'relationships' | 'world' | 'notes'
     this.viewParams = {};
 
     this.views = {
@@ -23,6 +24,7 @@ class App {
       editor: new EditorView(this),
       characters: new CharactersView(this),
       relationships: new RelationshipsView(this),
+      world: new WorldView(this),
       notes: new NotesView(this)
     };
 
@@ -68,6 +70,7 @@ class App {
         escribir: 'editor',
         personajes: 'characters',
         relaciones: 'relationships',
+        mundo: 'world',
         notas: 'notes'
       };
 
@@ -76,6 +79,7 @@ class App {
         chapterId: parts[3] || null,
         characterId: parts[3] || null,
         charId: parts[3] || null,
+        placeId: parts[3] || null,
         noteId: parts[3] || null,
         relId: parts[3] || null,
         mode: parts[4] || null
@@ -103,6 +107,7 @@ class App {
       editor: 'escribir',
       characters: 'personajes',
       relationships: 'relaciones',
+      world: 'mundo',
       notes: 'notas'
     };
 
@@ -110,6 +115,7 @@ class App {
     let extra = '';
     if (params.chapterId) extra = `/${params.chapterId}`;
     else if (params.characterId) extra = `/${params.characterId}`;
+    else if (params.placeId) extra = `/${params.placeId}`;
     else if (params.noteId) extra = `/${params.noteId}`;
 
     window.location.hash = `#/proyecto/${activeProject.id}/${slug}${extra}`;
@@ -177,6 +183,10 @@ class App {
             <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
             <span>Relaciones</span>
           </button>
+          <button class="nav-tab ${this.currentView === 'world' ? 'is-active' : ''}" data-nav="world">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <span>Mundo</span>
+          </button>
           <button class="nav-tab ${this.currentView === 'notes' ? 'is-active' : ''}" data-nav="notes">
             <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
             <span>Notas</span>
@@ -211,16 +221,24 @@ class App {
     this.navEl.querySelectorAll('.nav-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const view = tab.getAttribute('data-nav');
-        this.navigate(view);
+        if (view) {
+          const activeProj = store.getActiveProject();
+          this.navigate(view, activeProj ? activeProj.id : null);
+        }
       });
     });
 
-    // Abrir paleta de comandos
+    // Vincular botón biblioteca
+    this.navEl.querySelector('#btn-library')?.addEventListener('click', () => {
+      this.navigate('projects');
+    });
+
+    // Vincular búsqueda
     this.navEl.querySelector('#btn-trigger-search')?.addEventListener('click', () => {
       commandPalette.open();
     });
 
-    // Alternar tema
+    // Vincular cambio de tema
     this.navEl.querySelector('#btn-toggle-theme')?.addEventListener('click', () => {
       store.toggleTheme();
     });
@@ -230,7 +248,8 @@ class App {
     const activeProject = store.getActiveProject();
 
     if (action === 'navigate') {
-      this.navigate(payload.view, payload.projectId);
+      const activeProj = store.getActiveProject();
+      this.navigate(payload.view, activeProj ? activeProj.id : null);
     } else if (action === 'open-chapter') {
       this.navigate('editor', payload.projectId, { chapterId: payload.chapterId });
     } else if (action === 'open-character') {
@@ -244,6 +263,12 @@ class App {
         this.views.relationships.currentCategoryFilter = 'groups';
         const grp = store.getGroup(payload.groupId);
         if (grp) this.views.relationships.openGroupModal(grp, payload.projectId);
+      }, 150);
+    } else if (action === 'open-place') {
+      this.navigate('world', payload.projectId);
+      setTimeout(() => {
+        const pl = store.getPlace(payload.placeId, payload.projectId);
+        if (pl) this.views.world.openPlaceDetailModal(pl, payload.projectId);
       }, 150);
     } else if (action === 'create-chapter') {
       if (activeProject) {
@@ -270,6 +295,11 @@ class App {
       if (activeProject) {
         this.navigate('relationships', activeProject.id);
         setTimeout(() => this.views.relationships.openGroupModal(null, activeProject.id), 150);
+      }
+    } else if (action === 'create-place') {
+      if (activeProject) {
+        this.navigate('world', activeProject.id);
+        setTimeout(() => this.views.world.openPlaceModal(null, activeProject.id), 150);
       }
     } else if (action === 'create-note') {
       if (activeProject) {

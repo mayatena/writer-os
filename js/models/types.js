@@ -183,7 +183,8 @@ export function createNote({
   projectId,
   title = 'Nueva Nota',
   content = '',
-  tags = []
+  tags = [],
+  placeId = null
 } = {}) {
   const now = new Date().toISOString();
   return {
@@ -192,6 +193,199 @@ export function createNote({
     title: title.trim() || 'Nota sin título',
     content: content.trim(),
     tags: Array.isArray(tags) ? tags : [],
+    placeId: placeId || null,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+/**
+ * Categorías y tipos de lugares para Mundo y Worldbuilding
+ */
+export const PLACE_CATEGORIES = {
+  geografia: { id: 'geografia', label: 'Geografía Mayor', icon: '🗺️', color: '#B45309' },
+  asentamientos: { id: 'asentamientos', label: 'Asentamientos y Edificios', icon: '🏰', color: '#4F46E5' },
+  naturaleza: { id: 'naturaleza', label: 'Geografía Física y Natural', icon: '🌲', color: '#059669' },
+  infraestructura: { id: 'infraestructura', label: 'Infraestructura y Vías', icon: '🛤️', color: '#D97706' },
+  especiales: { id: 'especiales', label: 'Lugares Especiales', icon: '✨', color: '#7C3AED' }
+};
+
+export const PLACE_TYPES_BY_CATEGORY = {
+  geografia: [
+    { id: 'mundo', label: 'Mundo / Planeta' },
+    { id: 'continente', label: 'Continente' },
+    { id: 'pais', label: 'País / Nación' },
+    { id: 'reino', label: 'Reino' },
+    { id: 'imperio', label: 'Imperio' },
+    { id: 'estado', label: 'Estado / República' },
+    { id: 'region', label: 'Región' },
+    { id: 'provincia', label: 'Provincia / Condado' },
+    { id: 'ducado', label: 'Ducado' },
+    { id: 'territorio', label: 'Territorio Autónomo' },
+    { id: 'archipielago_territorial', label: 'Archipiélago (Territorial)' },
+    { id: 'colonia', label: 'Colonia / Protectorado' },
+    { id: 'federacion', label: 'Federación' },
+    { id: 'territorio_personalizado', label: 'Territorio Personalizado' }
+  ],
+  asentamientos: [
+    { id: 'ciudad', label: 'Ciudad' },
+    { id: 'capital', label: 'Capital' },
+    { id: 'pueblo', label: 'Pueblo' },
+    { id: 'aldea', label: 'Aldea / Caserío' },
+    { id: 'barrio', label: 'Barrio / Distrito' },
+    { id: 'puerto', label: 'Puerto' },
+    { id: 'fortaleza', label: 'Fortaleza / Ciudadela' },
+    { id: 'castillo', label: 'Castillo' },
+    { id: 'palacio', label: 'Palacio / Residencia Real' },
+    { id: 'templo', label: 'Templo / Santuario' },
+    { id: 'universidad', label: 'Universidad / Academia' },
+    { id: 'taberna', label: 'Taberna / Posada' },
+    { id: 'casa', label: 'Casa / Residencia' },
+    { id: 'tienda', label: 'Tienda / Taller / Mercado' },
+    { id: 'edificio', label: 'Edificio Institucional' },
+    { id: 'ruina', label: 'Ruina Urbana' },
+    { id: 'prision', label: 'Prisión / Torreón' },
+    { id: 'mazmorra', label: 'Mazmorra / Subterráneo' },
+    { id: 'sala', label: 'Sala / Recinto Interior' },
+    { id: 'asentamiento_personalizado', label: 'Asentamiento Personalizado' }
+  ],
+  naturaleza: [
+    { id: 'montana', label: 'Montaña / Pico' },
+    { id: 'cordillera', label: 'Cordillera / Sierra' },
+    { id: 'colina', label: 'Colina / Meseta' },
+    { id: 'valle', label: 'Valle / Garganta' },
+    { id: 'bosque', label: 'Bosque / Arboleda' },
+    { id: 'selva', label: 'Selva / Jungla' },
+    { id: 'desierto', label: 'Desierto / Dunas' },
+    { id: 'pantano', label: 'Pantano / Marisma' },
+    { id: 'llanura', label: 'Llanura / Pradera' },
+    { id: 'canon', label: 'Cañón / Acantilado' },
+    { id: 'cueva', label: 'Cueva / Caverna' },
+    { id: 'volcan', label: 'Volcán' },
+    { id: 'glaciar', label: 'Glaciar / Tundra' },
+    { id: 'rio', label: 'Río' },
+    { id: 'lago', label: 'Lago / Laguna' },
+    { id: 'cascada', label: 'Cascada / Salto de Agua' },
+    { id: 'mar', label: 'Mar / Golfo / Bahía' },
+    { id: 'oceano', label: 'Océano' },
+    { id: 'isla', label: 'Isla' },
+    { id: 'archipielago_natural', label: 'Archipiélago Natural' },
+    { id: 'naturaleza_personalizada', label: 'Elemento Natural Personalizado' }
+  ],
+  infraestructura: [
+    { id: 'carretera', label: 'Carretera / Calzada Real' },
+    { id: 'camino', label: 'Camino / Vía Comercial' },
+    { id: 'sendero', label: 'Sendero / Atajo' },
+    { id: 'ruta_comercial', label: 'Ruta Comercial (Caravana)' },
+    { id: 'ruta_maritima', label: 'Ruta Marítima / Vía Navegable' },
+    { id: 'ferrocarril', label: 'Ferrocarril / Vía Férrea' },
+    { id: 'canal', label: 'Canal Acuático' },
+    { id: 'puente', label: 'Puente / Viaducto' },
+    { id: 'tunel', label: 'Túnel / Paso Subterráneo' },
+    { id: 'paso_montana', label: 'Paso de Montaña / Desfiladero' },
+    { id: 'frontera', label: 'Línea Fronteriza' },
+    { id: 'muralla', label: 'Muralla / Fortificación Perimetral' },
+    { id: 'infraestructura_personalizada', label: 'Vía o Infraestructura Personalizada' }
+  ],
+  especiales: [
+    { id: 'sagrado', label: 'Lugar Sagrado / Bendecido' },
+    { id: 'maldito', label: 'Lugar Maldito / Encantado' },
+    { id: 'prohibido', label: 'Lugar Prohibido / Zona Restringida' },
+    { id: 'secreto', label: 'Lugar Secreto / Oculto' },
+    { id: 'ruina_misteriosa', label: 'Ruina Misteriosa / Antigua' },
+    { id: 'portal', label: 'Portal / Umbral Mágico' },
+    { id: 'plano', label: 'Plano / Dimensión Extraña' },
+    { id: 'sobrenatural', label: 'Anomalía Sobrenatural' },
+    { id: 'narrativo', label: 'Lugar de Interés Narrativo' },
+    { id: 'especial_personalizado', label: 'Lugar Especial Personalizado' }
+  ]
+};
+
+/**
+ * Fábrica de Lugar de Worldbuilding
+ */
+export function createPlace({
+  projectId,
+  name = 'Nuevo Lugar',
+  category = 'geografia',
+  type = 'territorio',
+  parentId = null,
+  description = '',
+  tags = [],
+  status = 'activo', // 'activo' | 'abandonado' | 'destruido' | 'en_construccion' | 'inaccesible' | 'secreto' | 'desaparecido' | 'otro'
+  history = '',
+  historicalDates = {}, // { foundationDate, destructionDate, abandonmentDate, period }
+  authorities = [], // Array de { id, characterId, title, responsibilityType, description, startDate, endDate }
+  specificData = {}, // contextual según categoría
+  mapData = {}, // { x, y, coordinates, mapId, icon, color }
+  color = '',
+  notes = ''
+} = {}) {
+  const now = new Date().toISOString();
+  const defaultColors = {
+    geografia: '#B45309',
+    asentamientos: '#4F46E5',
+    naturaleza: '#059669',
+    infraestructura: '#D97706',
+    especiales: '#7C3AED'
+  };
+
+  return {
+    id: generateId(),
+    projectId,
+    name: name.trim() || 'Lugar sin nombre',
+    category: category || 'geografia',
+    type: type || 'territorio',
+    parentId: parentId || null,
+    description: description.trim(),
+    tags: Array.isArray(tags) ? tags.map(t => String(t).trim()).filter(Boolean) : [],
+    status: status || 'activo',
+    history: history.trim(),
+    historicalDates: {
+      foundationDate: historicalDates?.foundationDate ? String(historicalDates.foundationDate).trim() : '',
+      destructionDate: historicalDates?.destructionDate ? String(historicalDates.destructionDate).trim() : '',
+      abandonmentDate: historicalDates?.abandonmentDate ? String(historicalDates.abandonmentDate).trim() : '',
+      period: historicalDates?.period ? String(historicalDates.period).trim() : ''
+    },
+    authorities: Array.isArray(authorities) ? authorities.map(a => ({
+      id: a.id || generateId(),
+      characterId: a.characterId || null,
+      title: (a.title || '').trim(),
+      responsibilityType: a.responsibilityType || 'civil', // 'civil' | 'militar' | 'religiosa' | 'propietaria' | 'honorifica' | 'otra'
+      description: (a.description || '').trim(),
+      startDate: (a.startDate || '').trim(),
+      endDate: (a.endDate || '').trim()
+    })).filter(a => a.characterId) : [],
+    specificData: {
+      capital: specificData?.capital || '',
+      population: specificData?.population || '',
+      governmentSystem: specificData?.governmentSystem || '',
+      region: specificData?.region || '',
+      function: specificData?.function || '',
+      altitude: specificData?.altitude || '',
+      hazards: specificData?.hazards || '',
+      originPlaceId: specificData?.originPlaceId || null,
+      destinationPlaceId: specificData?.destinationPlaceId || null,
+      distance: specificData?.distance || '',
+      transitStatus: specificData?.transitStatus || '',
+      controlGroupOrEntity: specificData?.controlGroupOrEntity || '',
+      mouthPlaceId: specificData?.mouthPlaceId || null,
+      length: specificData?.length || '',
+      dangerLevel: specificData?.dangerLevel || '',
+      accessRequirements: specificData?.accessRequirements || '',
+      supernaturalEffects: specificData?.supernaturalEffects || '',
+      customNotes: specificData?.customNotes || ''
+    },
+    mapData: {
+      x: mapData?.x !== undefined ? Number(mapData.x) : null,
+      y: mapData?.y !== undefined ? Number(mapData.y) : null,
+      coordinates: mapData?.coordinates || '',
+      mapId: mapData?.mapId || null,
+      icon: mapData?.icon || '',
+      color: mapData?.color || ''
+    },
+    color: color || defaultColors[category] || '#0D9488',
+    notes: notes.trim(),
     createdAt: now,
     updatedAt: now
   };
