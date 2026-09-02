@@ -82,15 +82,19 @@ class ModalController {
 
     this.backdrop.classList.add('is-open');
 
-    // Callback posterior a abrir para focus de inputs
+    // Callback síncrono para vincular listeners y preparar el DOM del modal
     if (onOpen) {
-      setTimeout(() => onOpen(this.bodyEl), 50);
-    } else {
-      setTimeout(() => {
-        const firstInput = this.bodyEl.querySelector('input, textarea, select');
-        firstInput?.focus();
-      }, 50);
+      try {
+        onOpen(this.bodyEl);
+      } catch (err) {
+        console.error('Error en onOpen del modal:', err);
+      }
     }
+
+    setTimeout(() => {
+      const firstInput = this.bodyEl.querySelector('input:not([type="hidden"]), textarea, select');
+      firstInput?.focus();
+    }, 50);
   }
 
   close() {

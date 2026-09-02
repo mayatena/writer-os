@@ -3,6 +3,7 @@
 import { store } from '../models/store.js';
 import { modal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
+import { escapeHtml } from '../models/types.js';
 
 export class NotesView {
   constructor(app) {
@@ -245,9 +246,10 @@ export class NotesView {
     });
   }
 
-  openNoteModal(note, projectId) {
+  openNoteModal(note = null, projectId, defaultValues = {}) {
     const isEditing = !!note;
     const places = store.getPlaces(projectId);
+    const targetPlaceId = note ? note.placeId : (defaultValues.placeId || '');
 
     modal.open({
       title: isEditing ? 'Editar nota' : 'Nueva nota creativa',
@@ -255,7 +257,7 @@ export class NotesView {
         <form id="form-note">
           <div class="form-group">
             <label class="form-label" for="note-title">Título de la nota *</label>
-            <input type="text" id="note-title" class="form-input" value="${note ? note.title : ''}" placeholder="Ej: Las leyes de la alquimia lunar" required />
+            <input type="text" id="note-title" class="form-input" value="${note ? escapeHtml(note.title) : ''}" placeholder="Ej: Las leyes de la alquimia lunar" required />
           </div>
 
           <div class="form-group">
@@ -263,8 +265,8 @@ export class NotesView {
             <select id="note-place" class="form-input">
               <option value="">-- Sin lugar asociado --</option>
               ${places.map(p => `
-                <option value="${p.id}" ${note && note.placeId === p.id ? 'selected' : ''}>
-                  ${p.name} (${p.type})
+                <option value="${p.id}" ${targetPlaceId === p.id ? 'selected' : ''}>
+                  ${escapeHtml(p.name)} (${escapeHtml(p.type)})
                 </option>
               `).join('')}
             </select>

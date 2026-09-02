@@ -1207,16 +1207,16 @@ export class RelationshipsView {
               <label class="form-label" for="rel-source">Entidad de Origen *</label>
               <select id="rel-source" class="form-select" required>
                 <optgroup label="Personajes">
-                  ${characters.map(c => `<option value="char:${escapeHtml(c.id)}" ${initialSourceId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                  ${characters.map(c => `<option value="char:${escapeHtml(c.id)}" ${initialSourceId === c.id || initialSourceId === 'char:' + c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                 </optgroup>
                 ${groups.length > 0 ? `
                   <optgroup label="Casas y Organizaciones">
-                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialSourceId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialSourceId === g.id || initialSourceId === 'group:' + g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
                 ${places.length > 0 ? `
                   <optgroup label="Mundo y Lugares">
-                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialSourceId === p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
+                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialSourceId === p.id || initialSourceId === 'place:' + p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
               </select>
@@ -1226,16 +1226,16 @@ export class RelationshipsView {
               <label class="form-label" for="rel-target">Entidad de Destino *</label>
               <select id="rel-target" class="form-select" required>
                 <optgroup label="Personajes">
-                  ${characters.map(c => `<option value="char:${escapeHtml(c.id)}" ${initialTargetId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                  ${characters.map(c => `<option value="char:${escapeHtml(c.id)}" ${initialTargetId === c.id || initialTargetId === 'char:' + c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                 </optgroup>
                 ${groups.length > 0 ? `
                   <optgroup label="Casas y Organizaciones">
-                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialTargetId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialTargetId === g.id || initialTargetId === 'group:' + g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
                 ${places.length > 0 ? `
                   <optgroup label="Mundo y Lugares">
-                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialTargetId === p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
+                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialTargetId === p.id || initialTargetId === 'place:' + p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
               </select>

@@ -1624,7 +1624,7 @@ export class WorldView {
         <div class="place-detail-section">
           <div class="place-detail-section-title">
             <span>Relaciones y Vínculos (${relationships.length})</span>
-            <button class="btn btn-ghost btn-sm" id="btn-add-place-rel" style="font-size:0.75rem;">+ Vincular Relación</button>
+            <button type="button" class="btn btn-secondary btn-sm place-detail-action-btn" id="btn-add-place-rel">+ Vincular Relación</button>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             ${relationships.length === 0 ? `
@@ -1651,7 +1651,7 @@ export class WorldView {
         <div class="place-detail-section">
           <div class="place-detail-section-title">
             <span>Notas Creativas de este Lugar (${linkedNotes.length})</span>
-            <button class="btn btn-ghost btn-sm" id="btn-add-place-note" style="font-size:0.75rem;">+ Nueva Nota</button>
+            <button type="button" class="btn btn-secondary btn-sm place-detail-action-btn" id="btn-add-place-note">+ Nueva Nota</button>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px;">
             ${linkedNotes.length === 0 ? `
@@ -1723,17 +1723,28 @@ export class WorldView {
           });
         });
 
-        modalEl.querySelector('#btn-add-place-note')?.addEventListener('click', () => {
+        modalEl.querySelector('#btn-add-place-note')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
           modal.close();
           this.app.navigate('notes', projectId);
+          setTimeout(() => {
+            this.app.views.notes?.openNoteModal(null, projectId, { placeId: place.id });
+          }, 120);
         });
 
-        modalEl.querySelector('#btn-add-place-rel')?.addEventListener('click', () => {
+        modalEl.querySelector('#btn-add-place-rel')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
           modal.close();
           this.app.navigate('relationships', projectId);
           setTimeout(() => {
-            this.app.views.relationships.openRelationshipModal(null, projectId, { sourceId: place.id });
-          }, 150);
+            this.app.views.relationships?.openRelationshipModal(null, projectId, {
+              sourceId: place.id,
+              category: 'espacial',
+              type: 'limita_con'
+            });
+          }, 120);
         });
       },
       onConfirm: () => {

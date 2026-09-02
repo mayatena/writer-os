@@ -646,6 +646,45 @@
   justify-content: space-between;
 }
 
+.place-detail-section-title button,
+.place-detail-action-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: none;
+  letter-spacing: normal;
+  transition: all var(--transition-fast);
+}
+
+.place-detail-section-title button:hover,
+.place-detail-action-btn:hover {
+  background-color: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+:root[data-theme="dark"] .place-detail-section-title button,
+:root[data-theme="dark"] .place-detail-action-btn {
+  background-color: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+:root[data-theme="dark"] .place-detail-section-title button:hover,
+:root[data-theme="dark"] .place-detail-action-btn:hover {
+  background-color: var(--accent-subtle);
+  border-color: var(--accent-hover);
+  color: var(--accent-text);
+}
+
 .place-authority-item {
   display: flex;
   align-items: center;
