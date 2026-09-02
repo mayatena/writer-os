@@ -532,6 +532,16 @@
   color: var(--text-secondary);
 }
 
+.map-world-entity-box.is-orphan {
+  border-color: #EF4444 !important;
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+:root[data-theme="dark"] .map-world-entity-box.is-orphan {
+  border-color: #EF4444 !important;
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
 /* ==========================================================================
    6. POPOVER DE CAPAS & MODALES
    ========================================================================== */

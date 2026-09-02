@@ -109,7 +109,13 @@ export class MapsView {
 
         ${maps.length === 0 ? `
           <div class="empty-state" style="padding: var(--space-3xl) var(--space-lg); text-align: center; background: var(--bg-surface); border: 1px dashed var(--border-subtle); border-radius: var(--radius-lg);">
-            <div style="font-size: 2.5rem; margin-bottom: var(--space-md);">🗺️</div>
+            <div style="margin-bottom: var(--space-md); color: var(--accent); opacity: 0.85; display: flex; justify-content: center;">
+              <svg class="icon" style="width: 48px; height: 48px;" viewBox="0 0 24 24">
+                <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
+                <line x1="9" y1="3" x2="9" y2="18"></line>
+                <line x1="15" y1="6" x2="15" y2="21"></line>
+              </svg>
+            </div>
             <h3 style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Aún no hay mapas en este proyecto</h3>
             <p style="font-size: 0.875rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto var(--space-lg) auto;">
               Crea tu primer mapa para plasmar continentes, trazar ríos y calzadas, y posicionar los lugares creados en Mundo.
@@ -229,6 +235,8 @@ export class MapsView {
      2. EDITOR CARTOGRÁFICO INTERACTIVO (3 ZONAS + CANVAS 2D)
      ========================================================================== */
   renderEditor(container, project, mapId) {
+    this.container = container;
+    this.currentMapId = mapId;
     const map = store.getMap(mapId, project.id);
     if (!map) {
       this.renderLibrary(container, project);
@@ -295,6 +303,10 @@ export class MapsView {
             <button class="btn btn-secondary btn-sm" id="btn-reorganize-places" title="Reorganizar distribución de lugares de Mundo">
               <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
               <span>Reorganizar</span>
+            </button>
+            <button class="btn btn-subtle btn-sm" id="btn-clear-map" title="Vaciar todos los elementos del mapa actual">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Vaciar</span>
             </button>
             <span class="map-toolbar-sep"></span>
             <button class="btn btn-subtle btn-sm" id="btn-toggle-layers" title="Gestionar capas cartográficas">
@@ -900,7 +912,7 @@ export class MapsView {
     ctx.closePath();
 
     ctx.fillStyle = el.fillColor || preset.accent;
-    ctx.globalAlpha = el.fillOpacity !== undefined ? el.fillOpacity : 0.25;
+    ctx.globalAlpha = el.fillOpacity !== undefined ? el.fillOpacity : 0.40;
     ctx.fill();
 
     ctx.globalAlpha = 1.0;
@@ -1137,9 +1149,22 @@ export class MapsView {
     ctx.restore();
 
     // Rótulo del punto si está activo
-    if (el.showLabel && el.label) {
-      const labelY = y + size / 2 + (el.labelSize || 13) + 2;
-      this.drawTextWithHalo(ctx, el.label, x, labelY, el.labelSize || 13, preset.textColor, preset.haloColor, 'center');
+    if (el.showLabel) {
+      const isOrphan = !!el.placeId && !store.getPlace(el.placeId);
+      const labelText = isOrphan ? `${el.label || 'Lugar'} (Eliminado)` : el.label;
+      if (labelText) {
+        const labelY = y + size / 2 + (el.labelSize || 13) + 2;
+        this.drawTextWithHalo(
+          ctx,
+          labelText,
+          x,
+          labelY,
+          el.labelSize || 13,
+          isOrphan ? '#DC2626' : preset.textColor,
+          isOrphan ? 'rgba(254, 226, 226, 0.95)' : preset.haloColor,
+          'center'
+        );
+      }
     }
   }
 
@@ -1279,10 +1304,14 @@ export class MapsView {
         </div>
       </div>
 
-      <div class="map-inspector-section" style="margin-top:auto; border-bottom:none;">
+      <div class="map-inspector-section" style="margin-top:auto; border-bottom:none; display:flex; flex-direction:column; gap:8px;">
         <button class="btn btn-secondary btn-sm" id="btn-export-map-png" style="width:100%;">
           <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           <span>Exportar Imagen PNG</span>
+        </button>
+        <button class="btn btn-subtle btn-sm" id="btn-inspector-clear-map" style="color:var(--danger); width:100%;">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          <span>Vaciar Elementos del Mapa</span>
         </button>
       </div>
     `;
@@ -1316,10 +1345,15 @@ export class MapsView {
     this.inspectorEl.querySelector('#btn-export-map-png')?.addEventListener('click', () => {
       this.exportMapAsPng(map);
     });
+
+    this.inspectorEl.querySelector('#btn-inspector-clear-map')?.addEventListener('click', () => {
+      this.promptClearMap(map, project);
+    });
   }
 
   renderElementInspector(elem, map, project) {
     const linkedPlace = elem.placeId ? store.getPlace(elem.placeId, project.id) : null;
+    const isOrphan = !!elem.placeId && !linkedPlace;
     const layers = map.layers || MAP_DEFAULT_LAYERS;
 
     this.inspectorEl.innerHTML = `
@@ -1330,7 +1364,7 @@ export class MapsView {
         </button>
       </div>
 
-      <!-- VÍNCULO CON ENTIDAD DE MUNDO (SI APLICA) -->
+      <!-- VÍNCULO CON ENTIDAD DE MUNDO O AVISO DE HUÉRFANO -->
       ${linkedPlace ? `
         <div class="map-world-entity-box">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -1344,7 +1378,27 @@ export class MapsView {
             <span>Ver Ficha en Mundo</span>
           </button>
         </div>
-      ` : ''}
+      ` : (isOrphan ? `
+        <div class="map-world-entity-box is-orphan" style="border-color:#EF4444; background:rgba(239, 68, 68, 0.08);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div class="map-world-entity-name" style="color:#EF4444; display:flex; align-items:center; gap:6px;">
+                <svg class="icon icon-xs" viewBox="0 0 24 24" style="color:#EF4444;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                <span>Lugar eliminado</span>
+              </div>
+              <div class="map-world-entity-badge" style="color:var(--text-secondary);">Esta entidad ya no existe en Mundo y Lugares.</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:8px;">
+            <button class="btn btn-secondary btn-sm" id="btn-orphan-unlink" style="flex:1; font-size:0.75rem;" title="Conservar como hito cartográfico independiente sin vínculo">
+              <span>Desvincular</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-orphan-delete" style="flex:1; font-size:0.75rem; color:#EF4444;" title="Eliminar esta representación del mapa">
+              <span>Eliminar</span>
+            </button>
+          </div>
+        </div>
+      ` : '')}
 
       <!-- PROPIEDADES VISUALES -->
       <div class="map-inspector-section">
@@ -1375,15 +1429,15 @@ export class MapsView {
         </div>
 
         <div class="map-inspector-section">
-          <div class="map-inspector-label">Tamaño del Símbolo (${elem.size}px)</div>
-          <input type="range" id="rng-elem-size" min="16" max="64" value="${elem.size}" />
+          <div class="map-inspector-label" id="lbl-elem-size">Tamaño del Símbolo (${elem.size || 28}px)</div>
+          <input type="range" id="rng-elem-size" min="16" max="64" value="${elem.size || 28}" />
         </div>
       ` : ''}
 
       ${elem.type === 'line' ? `
         <div class="map-inspector-section">
-          <div class="map-inspector-label">Grosor de Línea (${elem.strokeWidth}px)</div>
-          <input type="range" id="rng-elem-stroke-width" min="1" max="16" value="${elem.strokeWidth}" />
+          <div class="map-inspector-label" id="lbl-elem-stroke">Grosor de Línea (${elem.strokeWidth || 3}px)</div>
+          <input type="range" id="rng-elem-stroke-width" min="1" max="16" value="${elem.strokeWidth || 3}" />
         </div>
         <div class="map-inspector-section">
           <div class="map-inspector-label">Estilo de Trazo</div>
@@ -1397,8 +1451,8 @@ export class MapsView {
 
       ${elem.type === 'area' ? `
         <div class="map-inspector-section">
-          <div class="map-inspector-label">Opacidad de Relleno (${Math.round((elem.fillOpacity || 0.25) * 100)}%)</div>
-          <input type="range" id="rng-elem-opacity" min="0.05" max="0.9" step="0.05" value="${elem.fillOpacity || 0.25}" />
+          <div class="map-inspector-label" id="lbl-elem-opacity">Opacidad de Relleno (${Math.round((elem.fillOpacity !== undefined ? elem.fillOpacity : 0.40) * 100)}%)</div>
+          <input type="range" id="rng-elem-opacity" min="0.05" max="0.9" step="0.05" value="${elem.fillOpacity !== undefined ? elem.fillOpacity : 0.40}" />
         </div>
       ` : ''}
 
@@ -1427,49 +1481,104 @@ export class MapsView {
       }
     });
 
+    this.inspectorEl.querySelector('#btn-orphan-unlink')?.addEventListener('click', () => {
+      store.updateMapElement(map.id, elem.id, { placeId: null });
+      this.pushHistoryState(store.getMap(map.id));
+      this.renderInspector(store.getMap(map.id), project);
+      this.requestDraw(store.getMap(map.id));
+      showToast('Elemento desvinculado de Mundo.');
+    });
+
+    this.inspectorEl.querySelector('#btn-orphan-delete')?.addEventListener('click', () => {
+      store.removeMapElement(map.id, elem.id);
+      this.selectedElementIds.delete(elem.id);
+      this.pushHistoryState(store.getMap(map.id));
+      this.renderInspector(store.getMap(map.id), project);
+      this.requestDraw(store.getMap(map.id));
+      showToast('Representación eliminada del mapa.');
+    });
+
     this.inspectorEl.querySelector('#inp-elem-label')?.addEventListener('input', (e) => {
-      this.recordHistory(map);
       store.updateMapElement(map.id, elem.id, { label: e.target.value });
       this.requestDraw(store.getMap(map.id));
     });
+    this.inspectorEl.querySelector('#inp-elem-label')?.addEventListener('change', () => {
+      this.pushHistoryState(store.getMap(map.id));
+    });
 
     this.inspectorEl.querySelector('#chk-elem-show-label')?.addEventListener('change', (e) => {
-      this.recordHistory(map);
       store.updateMapElement(map.id, elem.id, { showLabel: e.target.checked });
+      this.pushHistoryState(store.getMap(map.id));
       this.requestDraw(store.getMap(map.id));
     });
 
     this.inspectorEl.querySelector('#select-elem-layer')?.addEventListener('change', (e) => {
-      this.recordHistory(map);
       store.updateMapElement(map.id, elem.id, { layerId: e.target.value });
+      this.pushHistoryState(store.getMap(map.id));
       this.requestDraw(store.getMap(map.id));
+    });
+
+    this.inspectorEl.querySelector('#inp-elem-x')?.addEventListener('change', (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val)) {
+        store.updateMapElement(map.id, elem.id, { x: Math.round(val) });
+        this.pushHistoryState(store.getMap(map.id));
+        this.requestDraw(store.getMap(map.id));
+      }
+    });
+
+    this.inspectorEl.querySelector('#inp-elem-y')?.addEventListener('change', (e) => {
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val)) {
+        store.updateMapElement(map.id, elem.id, { y: Math.round(val) });
+        this.pushHistoryState(store.getMap(map.id));
+        this.requestDraw(store.getMap(map.id));
+      }
     });
 
     this.inspectorEl.querySelector('#rng-elem-size')?.addEventListener('input', (e) => {
-      store.updateMapElement(map.id, elem.id, { size: parseInt(e.target.value, 10) });
+      const val = parseInt(e.target.value, 10);
+      store.updateMapElement(map.id, elem.id, { size: val });
+      const lbl = this.inspectorEl.querySelector('#lbl-elem-size');
+      if (lbl) lbl.textContent = `Tamaño del Símbolo (${val}px)`;
       this.requestDraw(store.getMap(map.id));
+    });
+    this.inspectorEl.querySelector('#rng-elem-size')?.addEventListener('change', () => {
+      this.pushHistoryState(store.getMap(map.id));
     });
 
     this.inspectorEl.querySelector('#rng-elem-stroke-width')?.addEventListener('input', (e) => {
-      store.updateMapElement(map.id, elem.id, { strokeWidth: parseInt(e.target.value, 10) });
+      const val = parseInt(e.target.value, 10);
+      store.updateMapElement(map.id, elem.id, { strokeWidth: val });
+      const lbl = this.inspectorEl.querySelector('#lbl-elem-stroke');
+      if (lbl) lbl.textContent = `Grosor de Línea (${val}px)`;
       this.requestDraw(store.getMap(map.id));
+    });
+    this.inspectorEl.querySelector('#rng-elem-stroke-width')?.addEventListener('change', () => {
+      this.pushHistoryState(store.getMap(map.id));
     });
 
     this.inspectorEl.querySelector('#select-elem-line-dash')?.addEventListener('change', (e) => {
-      this.recordHistory(map);
       store.updateMapElement(map.id, elem.id, { lineDash: e.target.value });
+      this.pushHistoryState(store.getMap(map.id));
       this.requestDraw(store.getMap(map.id));
     });
 
     this.inspectorEl.querySelector('#rng-elem-opacity')?.addEventListener('input', (e) => {
-      store.updateMapElement(map.id, elem.id, { fillOpacity: parseFloat(e.target.value) });
+      const val = parseFloat(e.target.value);
+      store.updateMapElement(map.id, elem.id, { fillOpacity: val });
+      const lbl = this.inspectorEl.querySelector('#lbl-elem-opacity');
+      if (lbl) lbl.textContent = `Opacidad de Relleno (${Math.round(val * 100)}%)`;
       this.requestDraw(store.getMap(map.id));
+    });
+    this.inspectorEl.querySelector('#rng-elem-opacity')?.addEventListener('change', () => {
+      this.pushHistoryState(store.getMap(map.id));
     });
 
     this.inspectorEl.querySelector('#btn-delete-elem')?.addEventListener('click', () => {
-      this.recordHistory(map);
       store.removeMapElement(map.id, elem.id);
       this.selectedElementIds.delete(elem.id);
+      this.pushHistoryState(store.getMap(map.id));
       this.renderInspector(store.getMap(map.id), project);
       this.requestDraw(store.getMap(map.id));
       showToast('Elemento eliminado del mapa.');
@@ -1525,6 +1634,7 @@ export class MapsView {
     // Botones de acción modal
     this.container.querySelector('#btn-open-generator')?.addEventListener('click', () => this.openWorldGeneratorModal(map, project));
     this.container.querySelector('#btn-reorganize-places')?.addEventListener('click', () => this.openReorganizeModal(map, project));
+    this.container.querySelector('#btn-clear-map')?.addEventListener('click', () => this.promptClearMap(map, project));
     this.container.querySelector('#btn-ref-image')?.addEventListener('click', () => this.openReferenceImageModal(map));
     this.container.querySelector('#btn-toggle-layers')?.addEventListener('click', () => this.toggleLayersPopover(map));
 
@@ -1593,14 +1703,18 @@ export class MapsView {
         e.preventDefault();
         if (e.shiftKey) this.redo(map, project);
         else this.undo(map, project);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        this.redo(map, project);
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (this.selectedElementIds.size > 0) {
           e.preventDefault();
-          this.recordHistory(map);
           this.selectedElementIds.forEach(id => store.removeMapElement(map.id, id));
+          this.pushHistoryState(store.getMap(map.id));
           this.selectedElementIds.clear();
+          this.renderLeftTabContent(project, store.getMap(map.id));
           this.renderInspector(store.getMap(map.id), project);
           this.requestDraw(store.getMap(map.id));
           showToast('Elemento(s) eliminado(s).');
@@ -1659,9 +1773,10 @@ export class MapsView {
     if (this.activeTool === 'erase') {
       const hit = this.hitTestElement(world.x, world.y, map);
       if (hit) {
-        this.recordHistory(map);
         store.removeMapElement(map.id, hit.id);
+        this.pushHistoryState(store.getMap(map.id));
         this.selectedElementIds.delete(hit.id);
+        this.renderLeftTabContent(project, store.getMap(map.id));
         this.renderInspector(store.getMap(map.id), project);
         this.requestDraw(store.getMap(map.id));
         showToast('Elemento borrado.');
@@ -1696,7 +1811,6 @@ export class MapsView {
           if (vIdx !== null) {
             this.isDraggingVertex = true;
             this.selectedVertexIndex = vIdx;
-            this.recordHistory(map);
             return;
           }
         }
@@ -1722,7 +1836,6 @@ export class MapsView {
         this.dragStartX = world.x;
         this.dragStartY = world.y;
         this.selectedVertexIndex = null;
-        this.recordHistory(map);
         this.renderInspector(map, project);
         this.requestDraw(map);
       } else {
@@ -1807,13 +1920,22 @@ export class MapsView {
 
     if (this.isDraggingVertex) {
       this.isDraggingVertex = false;
+      if (this.selectedElementIds.size === 1) {
+        const selElem = (map.elements || []).find(el => this.selectedElementIds.has(el.id));
+        if (selElem && selElem.points) {
+          store.updateMapElement(map.id, selElem.id, { points: selElem.points });
+          this.pushHistoryState(store.getMap(map.id));
+        }
+      }
     }
 
     if (this.isDraggingElement) {
       this.isDraggingElement = false;
+      let anyMoved = false;
       // Persistir nuevas coordenadas de los elementos movidos
       (map.elements || []).forEach(el => {
         if (this.selectedElementIds.has(el.id)) {
+          anyMoved = true;
           if (el.type === 'point' || el.type === 'annotation') {
             store.updateMapElement(map.id, el.id, { x: el.x, y: el.y });
           } else if (el.points) {
@@ -1821,6 +1943,9 @@ export class MapsView {
           }
         }
       });
+      if (anyMoved) {
+        this.pushHistoryState(store.getMap(map.id));
+      }
       this.renderInspector(map, project);
     }
 
@@ -1936,12 +2061,11 @@ export class MapsView {
 
     const isArea = ['mar', 'lago', 'bosque', 'desierto'].includes(this.activeTool);
     const tool = this.activeTool;
-    this.recordHistory(map);
 
     let layerId = 'layer-terreno';
     let strokeColor = '#524636';
     let fillColor = '#D4E6EB';
-    let fillOpacity = 0.25;
+    let fillOpacity = 0.40;
     let strokeWidth = 3;
     let lineDash = 'solid';
     let label = '';
@@ -1955,25 +2079,25 @@ export class MapsView {
       layerId = 'layer-agua';
       fillColor = '#38BDF8';
       strokeColor = '#0284C7';
-      fillOpacity = 0.35;
+      fillOpacity = 0.45;
       label = 'Mar';
     } else if (tool === 'lago') {
       layerId = 'layer-agua';
       fillColor = '#7DD3FC';
       strokeColor = '#0284C7';
-      fillOpacity = 0.4;
+      fillOpacity = 0.48;
       label = 'Lago';
     } else if (tool === 'bosque') {
       layerId = 'layer-terreno';
       fillColor = '#10B981';
       strokeColor = '#059669';
-      fillOpacity = 0.25;
+      fillOpacity = 0.40;
       label = 'Bosque';
     } else if (tool === 'desierto') {
       layerId = 'layer-terreno';
       fillColor = '#FBBF24';
       strokeColor = '#D97706';
-      fillOpacity = 0.25;
+      fillOpacity = 0.38;
       label = 'Desierto';
     } else if (tool === 'carretera') {
       layerId = 'layer-infra';
@@ -2021,7 +2145,10 @@ export class MapsView {
 
     this.drawingPoints = [];
     this.selectedElementIds.clear();
-    if (newElem) this.selectedElementIds.add(newElem.id);
+    if (newElem) {
+      this.selectedElementIds.add(newElem.id);
+      this.pushHistoryState(store.getMap(map.id));
+    }
 
     this.renderInspector(store.getMap(map.id), project);
     this.requestDraw(store.getMap(map.id));
@@ -2029,7 +2156,6 @@ export class MapsView {
   }
 
   createPointElementFromTool(map, tool, x, y) {
-    this.recordHistory(map);
     let layerId = 'layer-terreno';
     let icon = tool;
     let label = '';
@@ -2082,15 +2208,16 @@ export class MapsView {
     });
 
     this.selectedElementIds.clear();
-    if (elem) this.selectedElementIds.add(elem.id);
+    if (elem) {
+      this.selectedElementIds.add(elem.id);
+      this.pushHistoryState(store.getMap(map.id));
+    }
     const proj = store.getActiveProject();
     this.renderInspector(store.getMap(map.id), proj);
     this.requestDraw(store.getMap(map.id));
   }
 
   placeWorldEntityOnMap(map, place, x, y) {
-    this.recordHistory(map);
-
     // Deducir icono e inferencia espacial basada en categoría de Mundo
     let icon = 'ciudad';
     let layerId = 'layer-lugares';
@@ -2137,7 +2264,10 @@ export class MapsView {
     });
 
     this.selectedElementIds.clear();
-    if (elem) this.selectedElementIds.add(elem.id);
+    if (elem) {
+      this.selectedElementIds.add(elem.id);
+      this.pushHistoryState(store.getMap(map.id));
+    }
 
     const project = store.getActiveProject();
     this.renderLeftTabContent(project, store.getMap(map.id));
@@ -2147,11 +2277,15 @@ export class MapsView {
   }
 
   /* ==========================================================================
-     7. HISTORIAL (DESHACER / REHACER)
+     7. HISTORIAL (DESHACER / REHACER) & VACIADO DE MAPA
      ========================================================================== */
-  recordHistory(map) {
+  pushHistoryState(map) {
+    if (!map) return;
     const currentState = JSON.stringify(map.elements || []);
-    // Cortar rehacer futuro
+    // Evitar duplicar el mismo estado consecutivo
+    if (this.historyStack[this.historyIndex] === currentState) return;
+
+    // Cortar cualquier estado futuro
     this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
     this.historyStack.push(currentState);
     if (this.historyStack.length > this.maxHistory) {
@@ -2159,6 +2293,10 @@ export class MapsView {
     } else {
       this.historyIndex++;
     }
+  }
+
+  recordHistory(map) {
+    this.pushHistoryState(map);
   }
 
   undo(map, project) {
@@ -2170,6 +2308,7 @@ export class MapsView {
     const state = JSON.parse(this.historyStack[this.historyIndex]);
     store.updateMap(map.id, { elements: state });
     this.selectedElementIds.clear();
+    this.renderLeftTabContent(project, store.getMap(map.id));
     this.renderInspector(store.getMap(map.id), project);
     this.requestDraw(store.getMap(map.id));
     showToast('Acción deshecha.');
@@ -2184,9 +2323,47 @@ export class MapsView {
     const state = JSON.parse(this.historyStack[this.historyIndex]);
     store.updateMap(map.id, { elements: state });
     this.selectedElementIds.clear();
+    this.renderLeftTabContent(project, store.getMap(map.id));
     this.renderInspector(store.getMap(map.id), project);
     this.requestDraw(store.getMap(map.id));
     showToast('Acción rehecha.');
+  }
+
+  promptClearMap(map, project) {
+    const currentElements = map.elements || [];
+    if (currentElements.length === 0) {
+      showToast('El mapa ya está vacío.');
+      return;
+    }
+
+    modal.open({
+      title: '¿Vaciar todos los elementos del mapa?',
+      contentHtml: `
+        <div style="display:flex; flex-direction:column; gap:var(--space-md);">
+          <p style="font-size:0.875rem; color:var(--text-secondary); margin:0;">
+            Se eliminarán todos los accidentes geográficos, vías y puntos de este mapa (<strong>${currentElements.length}</strong> elementos).
+          </p>
+          <div style="background:var(--bg-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); font-size:0.8125rem; color:var(--text-secondary);">
+            <strong>Tus datos narrativos están seguros:</strong> los lugares creados en Mundo, personajes, grupos, capítulos y notas <strong>NO</strong> se eliminarán.
+          </div>
+          <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">
+            Podrás deshacer este vaciado en cualquier momento pulsando <code>Ctrl + Z</code>.
+          </p>
+        </div>
+      `,
+      confirmText: 'Vaciar Mapa',
+      cancelText: 'Cancelar',
+      onConfirm: () => {
+        store.updateMap(map.id, { elements: [] });
+        this.pushHistoryState(store.getMap(map.id));
+        this.selectedElementIds.clear();
+        this.renderLeftTabContent(project, store.getMap(map.id));
+        this.renderInspector(store.getMap(map.id), project);
+        this.requestDraw(store.getMap(map.id));
+        showToast('Mapa vaciado. Puedes deshacer con Ctrl + Z.');
+        return true;
+      }
+    });
   }
 
   applyZoom(factor) {
@@ -2341,14 +2518,15 @@ export class MapsView {
      ========================================================================== */
   openWorldGeneratorModal(map, project) {
     let proposalElements = null;
+    let currentModalEl = null;
 
     const generateProposal = (modalEl) => {
-      const density = modalEl.querySelector('#gen-density').value; // 'low' | 'medium' | 'high'
-      const hasMountains = modalEl.querySelector('#gen-mountains').checked;
-      const hasWater = modalEl.querySelector('#gen-water').checked;
-      const hasSettlements = modalEl.querySelector('#gen-settlements').checked;
-      const includeWorldPlaces = modalEl.querySelector('#gen-world-places').checked;
-      const seedStr = modalEl.querySelector('#gen-seed').value || Date.now().toString();
+      const density = modalEl.querySelector('#gen-density')?.value || 'medium';
+      const hasMountains = modalEl.querySelector('#gen-mountains')?.checked ?? true;
+      const hasWater = modalEl.querySelector('#gen-water')?.checked ?? true;
+      const hasSettlements = modalEl.querySelector('#gen-settlements')?.checked ?? true;
+      const includeWorldPlaces = modalEl.querySelector('#gen-world-places')?.checked ?? true;
+      const seedStr = modalEl.querySelector('#gen-seed')?.value || Date.now().toString();
 
       // PRNG determinista
       let seedVal = 0;
@@ -2361,6 +2539,11 @@ export class MapsView {
       const elements = [];
       const w = map.width;
       const h = map.height;
+      let mountainCount = 0;
+      let waterCount = 0;
+      let forestCount = 0;
+      let settlementCount = 0;
+      let worldPlaceCount = 0;
 
       // 1. Mar u Océano costero
       if (hasWater) {
@@ -2372,10 +2555,10 @@ export class MapsView {
           layerId: 'layer-agua',
           points: [
             { x: 0, y: 0 },
-            { x: w * (0.22 + random() * 0.08), y: 0 },
-            { x: w * (0.28 + random() * 0.08), y: bayY1 },
-            { x: w * (0.22 + random() * 0.06), y: bayY2 },
-            { x: w * (0.3 + random() * 0.08), y: h },
+            { x: Math.round(w * (0.22 + random() * 0.08)), y: 0 },
+            { x: Math.round(w * (0.28 + random() * 0.08)), y: Math.round(bayY1) },
+            { x: Math.round(w * (0.22 + random() * 0.06)), y: Math.round(bayY2) },
+            { x: Math.round(w * (0.3 + random() * 0.08)), y: h },
             { x: 0, y: h }
           ],
           icon: 'mar',
@@ -2385,8 +2568,9 @@ export class MapsView {
           strokeColor: '#0284C7',
           strokeWidth: 3,
           fillColor: '#38BDF8',
-          fillOpacity: 0.3
+          fillOpacity: 0.45
         });
+        waterCount++;
       }
 
       // 2. Cadenas montañosas
@@ -2417,6 +2601,7 @@ export class MapsView {
           };
           elements.push(peak);
           mountainPeaks.push(peak);
+          mountainCount++;
         }
       }
 
@@ -2439,11 +2624,12 @@ export class MapsView {
           strokeColor: '#0284C7',
           strokeWidth: 5
         });
+        waterCount++;
       }
 
       // 4. Bosques orgánicos
-      const forestCount = density === 'low' ? 1 : density === 'high' ? 3 : 2;
-      for (let f = 0; f < forestCount; f++) {
+      const numForests = density === 'low' ? 1 : density === 'high' ? 3 : 2;
+      for (let f = 0; f < numForests; f++) {
         const fcX = w * (0.6 + (f * 0.15) * (random() - 0.5));
         const fcY = h * (0.4 + f * 0.25);
         const rad = 180 + random() * 100;
@@ -2464,8 +2650,9 @@ export class MapsView {
           showLabel: true,
           fillColor: '#10B981',
           strokeColor: '#059669',
-          fillOpacity: 0.24
+          fillOpacity: 0.40
         });
+        forestCount++;
       }
 
       // 5. Asentamientos
@@ -2484,6 +2671,7 @@ export class MapsView {
             showLabel: true,
             color: '#4F46E5'
           });
+          settlementCount++;
         }
       }
 
@@ -2504,13 +2692,17 @@ export class MapsView {
             showLabel: true,
             color: p.color || '#4F46E5'
           });
+          worldPlaceCount++;
         });
       }
 
       proposalElements = elements;
       const prevEl = modalEl.querySelector('#gen-summary-text');
       if (prevEl) {
-        prevEl.innerHTML = `Propuesta generada: <strong>${elements.length}</strong> accidentes y asentamientos calculados.`;
+        prevEl.innerHTML = `
+          <strong>Propuesta generada:</strong> ${elements.length} elementos calculados (${mountainCount} picos, ${waterCount} aguas, ${forestCount} bosques, ${settlementCount} asentamientos${worldPlaceCount > 0 ? `, ${worldPlaceCount} lugares de Mundo` : ''}).<br>
+          <span style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; display:inline-block;">El mapa no se modificará hasta pulsar «Aplicar al Mapa».</span>
+        `;
       }
     };
 
@@ -2534,7 +2726,10 @@ export class MapsView {
             <label class="form-label" for="gen-seed">Semilla Aleatoria</label>
             <div style="display:flex; gap:6px;">
               <input type="text" class="input" id="gen-seed" value="${Math.floor(Math.random() * 999999)}" />
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-reroll-seed">🎲</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-reroll-seed" title="Nueva semilla">
+                <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                <span>Aleatorio</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2558,9 +2753,28 @@ export class MapsView {
           </div>
         </div>
 
-        <div id="gen-summary-text" style="font-size:0.8125rem; color:var(--text-secondary); font-style:italic;">
-          Haz clic en «Generar Propuesta» para visualizar el resultado.
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Modo de Aplicación</label>
+          <div style="display:flex; gap:16px; font-size:0.8125rem;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="radio" name="gen-mode" value="append" checked />
+              <span>Añadir a los elementos existentes</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="radio" name="gen-mode" value="replace" />
+              <span>Reemplazar mapa actual</span>
+            </label>
+          </div>
         </div>
+
+        <div id="gen-summary-text" style="font-size:0.8125rem; color:var(--text-secondary); background:var(--bg-surface); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); line-height:1.4;">
+          Calculando propuesta temporal...
+        </div>
+
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-regen-proposal" style="width:100%;">
+          <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          <span>Regenerar Propuesta</span>
+        </button>
       </div>
     `;
 
@@ -2570,10 +2784,23 @@ export class MapsView {
       confirmText: 'Aplicar al Mapa',
       cancelText: 'Cancelar',
       onOpen: (modalEl) => {
+        currentModalEl = modalEl;
+
+        const triggerRegen = () => generateProposal(modalEl);
+
         modalEl.querySelector('#btn-reroll-seed')?.addEventListener('click', () => {
           modalEl.querySelector('#gen-seed').value = Math.floor(Math.random() * 999999);
-          generateProposal(modalEl);
+          triggerRegen();
         });
+
+        modalEl.querySelector('#btn-regen-proposal')?.addEventListener('click', triggerRegen);
+        modalEl.querySelector('#gen-density')?.addEventListener('change', triggerRegen);
+        modalEl.querySelector('#gen-seed')?.addEventListener('input', triggerRegen);
+        modalEl.querySelector('#gen-mountains')?.addEventListener('change', triggerRegen);
+        modalEl.querySelector('#gen-water')?.addEventListener('change', triggerRegen);
+        modalEl.querySelector('#gen-settlements')?.addEventListener('change', triggerRegen);
+        modalEl.querySelector('#gen-world-places')?.addEventListener('change', triggerRegen);
+
         generateProposal(modalEl);
       },
       onConfirm: () => {
@@ -2581,15 +2808,17 @@ export class MapsView {
           showToast('Genera una propuesta antes de aplicar.');
           return false;
         }
-        this.recordHistory(map);
-        // Combinar propuesta respetando los elementos previos
+
+        const mode = currentModalEl?.querySelector('input[name="gen-mode"]:checked')?.value || 'append';
         const currentElems = map.elements || [];
-        const combined = [...currentElems, ...proposalElements];
+        const combined = mode === 'replace' ? proposalElements : [...currentElems, ...proposalElements];
+
         store.updateMap(map.id, { elements: combined });
+        this.pushHistoryState(store.getMap(map.id));
         this.renderLeftTabContent(project, store.getMap(map.id));
         this.renderInspector(store.getMap(map.id), project);
         this.requestDraw(store.getMap(map.id));
-        showToast(`Se han añadido ${proposalElements.length} elementos procedurales al mapa.`);
+        showToast(mode === 'replace' ? 'Mapa reemplazado con la propuesta procedural.' : `Se han añadido ${proposalElements.length} elementos procedurales al mapa.`);
         return true;
       }
     });
@@ -2605,14 +2834,113 @@ export class MapsView {
       return;
     }
 
+    let proposedPositions = new Map();
+
+    const calculateProposal = (modalEl) => {
+      const pattern = modalEl.querySelector('#reorg-pattern')?.value || 'equilibrado';
+      const seedStr = modalEl.querySelector('#reorg-seed')?.value || Date.now().toString();
+
+      let seedVal = 0;
+      for (let i = 0; i < seedStr.length; i++) seedVal = (seedVal * 31 + seedStr.charCodeAt(i)) & 0xffffffff;
+      const random = () => {
+        seedVal = (seedVal * 1664525 + 1013904223) & 0xffffffff;
+        return (seedVal >>> 0) / 4294967296;
+      };
+
+      const w = map.width;
+      const h = map.height;
+      const count = placeElems.length;
+      proposedPositions = new Map();
+
+      if (pattern === 'radial') {
+        placeElems.forEach((el, idx) => {
+          const angle = (idx / count) * Math.PI * 2 + (random() - 0.5) * 0.3;
+          const radius = Math.min(w, h) * (0.24 + (idx % 3) * 0.08);
+          proposedPositions.set(el.id, {
+            x: Math.round(w / 2 + Math.cos(angle) * radius),
+            y: Math.round(h / 2 + Math.sin(angle) * radius)
+          });
+        });
+      } else if (pattern === 'costera') {
+        placeElems.forEach((el, idx) => {
+          const isCoast = (idx % 2 === 0);
+          const px = isCoast ? w * (0.28 + random() * 0.12) : w * (0.50 + random() * 0.35);
+          const py = h * (0.20 + (idx / count) * 0.60 + (random() - 0.5) * 0.08);
+          proposedPositions.set(el.id, {
+            x: Math.round(Math.max(100, Math.min(w - 100, px))),
+            y: Math.round(Math.max(100, Math.min(h - 100, py)))
+          });
+        });
+      } else {
+        // Equilibrado por cuadrantes
+        const cols = Math.ceil(Math.sqrt(count));
+        const rows = Math.ceil(count / cols);
+        const cellW = (w * 0.7) / cols;
+        const cellH = (h * 0.7) / rows;
+        const startX = w * 0.15;
+        const startY = h * 0.15;
+
+        placeElems.forEach((el, idx) => {
+          const col = idx % cols;
+          const row = Math.floor(idx / cols);
+          const jitterX = (random() - 0.5) * cellW * 0.6;
+          const jitterY = (random() - 0.5) * cellH * 0.6;
+          proposedPositions.set(el.id, {
+            x: Math.round(startX + col * cellW + cellW / 2 + jitterX),
+            y: Math.round(startY + row * cellH + cellH / 2 + jitterY)
+          });
+        });
+      }
+
+      const patternLabels = {
+        equilibrado: 'Equilibrado por Cuadrantes',
+        radial: 'Radial Concéntrico',
+        costera: 'Litoral e Interior'
+      };
+
+      const summaryEl = modalEl.querySelector('#reorg-summary-text');
+      if (summaryEl) {
+        summaryEl.innerHTML = `
+          <strong>Propuesta calculada:</strong> ${placeElems.length} lugares reubicados usando distribución <em>${patternLabels[pattern] || pattern}</em>.<br>
+          <span style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; display:inline-block;">Tus lugares en Mundo permanecerán intactos; solo se actualizan sus coordenadas en este mapa.</span>
+        `;
+      }
+    };
+
     const contentHtml = `
       <div style="display:flex; flex-direction:column; gap:var(--space-md);">
         <p style="font-size:0.875rem; color:var(--text-secondary); margin:0;">
           Reorganiza la disposición visual de los <strong>${placeElems.length}</strong> lugares existentes en este mapa sin alterar sus datos en Mundo.
         </p>
-        <div style="background:var(--bg-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); font-size:0.8125rem; color:var(--text-secondary);">
-          Se aplicará una distribución armónica respetando separaciones mínimas entre ciudades, costas e interiores.
+
+        <div class="form-group">
+          <label class="form-label" for="reorg-pattern">Patrón de Distribución</label>
+          <select class="input" id="reorg-pattern">
+            <option value="equilibrado" selected>Equilibrado por Cuadrantes (Evita solapamientos)</option>
+            <option value="radial">Radial Concéntrico (Anillo alrededor del centro)</option>
+            <option value="costera">Litoral e Interior (Costa al oeste e interior al este)</option>
+          </select>
         </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reorg-seed">Semilla de Variación</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" class="input" id="reorg-seed" value="${Math.floor(Math.random() * 999999)}" />
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-reorg-reroll" title="Nueva variación">
+              <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+              <span>Variación</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="reorg-summary-text" style="font-size:0.8125rem; color:var(--text-secondary); background:var(--bg-subtle); padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-subtle); line-height:1.4;">
+          Calculando propuesta de reorganización...
+        </div>
+
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-regen-reorg" style="width:100%;">
+          <svg class="icon icon-xs" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          <span>Regenerar Distribución</span>
+        </button>
       </div>
     `;
 
@@ -2621,23 +2949,39 @@ export class MapsView {
       contentHtml,
       confirmText: 'Aplicar Reorganización',
       cancelText: 'Cancelar',
-      onConfirm: () => {
-        this.recordHistory(map);
-        const w = map.width;
-        const h = map.height;
-        const count = placeElems.length;
+      onOpen: (modalEl) => {
+        const triggerReorg = () => calculateProposal(modalEl);
 
-        placeElems.forEach((el, idx) => {
-          const angle = (idx / count) * Math.PI * 2;
-          const radius = Math.min(w, h) * (0.25 + (idx % 2) * 0.1);
-          el.x = Math.round(w / 2 + Math.cos(angle) * radius);
-          el.y = Math.round(h / 2 + Math.sin(angle) * radius);
+        modalEl.querySelector('#btn-reorg-reroll')?.addEventListener('click', () => {
+          modalEl.querySelector('#reorg-seed').value = Math.floor(Math.random() * 999999);
+          triggerReorg();
         });
 
-        store.updateMap(map.id, { elements: map.elements });
+        modalEl.querySelector('#btn-regen-reorg')?.addEventListener('click', triggerReorg);
+        modalEl.querySelector('#reorg-pattern')?.addEventListener('change', triggerReorg);
+        modalEl.querySelector('#reorg-seed')?.addEventListener('input', triggerReorg);
+
+        calculateProposal(modalEl);
+      },
+      onConfirm: () => {
+        if (!proposedPositions || proposedPositions.size === 0) {
+          showToast('Genera una propuesta antes de aplicar.');
+          return false;
+        }
+
+        (map.elements || []).forEach(el => {
+          if (proposedPositions.has(el.id)) {
+            const pos = proposedPositions.get(el.id);
+            el.x = pos.x;
+            el.y = pos.y;
+            store.updateMapElement(map.id, el.id, { x: pos.x, y: pos.y });
+          }
+        });
+
+        this.pushHistoryState(store.getMap(map.id));
         this.renderInspector(store.getMap(map.id), project);
         this.requestDraw(store.getMap(map.id));
-        showToast('Lugares reorganizados estéticamente.');
+        showToast(`Se han reorganizado ${proposedPositions.size} lugares estéticamente.`);
         return true;
       }
     });

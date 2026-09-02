@@ -998,16 +998,8 @@ class Store {
       }
     });
 
-    // 4. Desvincular representaciones cartográficas en mapas del proyecto (sin destruir los elementos)
-    (this.data.maps || []).forEach(m => {
-      if (m.projectId === projectId && Array.isArray(m.elements)) {
-        m.elements.forEach(el => {
-          if (el.placeId === id) {
-            el.placeId = null;
-          }
-        });
-      }
-    });
+    // 4. Las representaciones cartográficas en mapas del proyecto conservan su placeId
+    // para que el editor de mapas detecte el lugar eliminado como huérfano y avise al escritor.
 
     this.touchProject(projectId);
     this.save();
