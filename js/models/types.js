@@ -322,6 +322,38 @@ export const PLACE_TYPES_BY_CATEGORY = {
 };
 
 /**
+ * Tipos espaciales para representación cartográfica (Punto, Línea y Área)
+ */
+export const PLACE_SPATIAL_TYPES = {
+  POINT: 'point', // Ciudades, edificios, aposentos, cuevas, fortalezas, templos, etc.
+  LINE: 'line',   // Carreteras, ríos, rutas, murallas, fronteras, canales, etc.
+  AREA: 'area'    // Continentes, países, reinos, regiones, bosques, mares, etc.
+};
+
+export function inferPlaceSpatialType(category, type = '') {
+  const lineTypes = [
+    'carretera', 'camino', 'sendero', 'ruta_comercial', 'ruta_maritima',
+    'ferrocarril', 'canal', 'puente', 'tunel', 'paso_montana', 'frontera',
+    'muralla', 'rio'
+  ];
+  if (category === 'infraestructura' || lineTypes.includes(type)) {
+    return PLACE_SPATIAL_TYPES.LINE;
+  }
+
+  const areaTypes = [
+    'mundo', 'continente', 'pais', 'reino', 'imperio', 'estado', 'region',
+    'provincia', 'ducado', 'territorio', 'archipielago_territorial', 'colonia',
+    'federacion', 'territorio_personalizado', 'bosque', 'selva', 'desierto',
+    'pantano', 'llanura', 'valle', 'mar', 'oceano', 'archipielago_natural'
+  ];
+  if (category === 'geografia' || areaTypes.includes(type)) {
+    return PLACE_SPATIAL_TYPES.AREA;
+  }
+
+  return PLACE_SPATIAL_TYPES.POINT;
+}
+
+/**
  * Fábrica de Lugar de Worldbuilding
  */
 export function createPlace({
@@ -337,7 +369,7 @@ export function createPlace({
   historicalDates = {}, // { foundationDate, destructionDate, abandonmentDate, period }
   authorities = [], // Array de { id, characterId, title, responsibilityType, description, startDate, endDate }
   specificData = {}, // contextual según categoría
-  mapData = {}, // { x, y, coordinates, mapId, icon, color }
+  mapData = {}, // { x, y, spatialType, coordinates, mapId, geometry, bounds, zoomLevel, icon, color }
   color = '',
   notes = ''
 } = {}) {
@@ -401,7 +433,8 @@ export function createPlace({
     mapData: {
       x: mapData?.x !== undefined ? Number(mapData.x) : null,
       y: mapData?.y !== undefined ? Number(mapData.y) : null,
-      coordinates: mapData?.coordinates || '',
+      spatialType: mapData?.spatialType || inferPlaceSpatialType(category, type), // 'point' | 'line' | 'area'
+      coordinates: mapData?.coordinates || null,
       mapId: mapData?.mapId || null,
       geometry: mapData?.geometry || null, // 'point' | 'polyline' | 'polygon'
       bounds: mapData?.bounds || null,

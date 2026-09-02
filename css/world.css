@@ -933,3 +933,19 @@
   background-color: var(--bg-surface);
   color: var(--text-primary);
 }
+
+:root[data-theme="dark"] .world-tree-unclassified-box {
+  background-color: var(--bg-surface);
+  border-color: var(--border-strong);
+}
+
+:root[data-theme="dark"] .world-tree-unclassified-item {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .wiki-infra-card {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-strong);
+}
+

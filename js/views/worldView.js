@@ -359,7 +359,7 @@ export class WorldView {
           <div style="font-size: 0.75rem; color: var(--text-muted);">
             ${children.length > 0 ? `<span>${children.length} sub-lugares</span>` : '<span>Nivel hoja</span>'}
           </div>
-          <div style="display: flex; gap: 6px;">
+          <div style="display: flex; gap: 4px;">
             <button class="btn btn-subtle btn-sm btn-view-place" data-place-id="${escapeHtml(place.id)}" title="Ver Ficha Detallada">
               <span>Ficha</span>
             </button>
