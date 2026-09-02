@@ -1,0 +1,616 @@
+/* Writer OS — Estilos del Módulo de Mapas y Editor Cartográfico */
+
+/* ==========================================================================
+   1. BIBLIOTECA DE MAPAS (Vista Principal)
+   ========================================================================== */
+.maps-library-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.maps-library-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-lg);
+}
+
+.maps-library-title h1 {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.maps-library-title p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.maps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
+}
+
+.map-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  position: relative;
+}
+
+.map-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.map-card-preview {
+  height: 140px;
+  background-color: var(--bg-subtle);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.map-card-preview-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, var(--text-primary) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--text-primary) 1px, transparent 1px);
+}
+
+.map-card-preset-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+.map-card-body {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1;
+}
+
+.map-card-name {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.map-card-name:hover {
+  color: var(--accent);
+}
+
+.map-card-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: var(--space-xs);
+}
+
+.map-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: auto;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.map-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  background-color: var(--bg-surface);
+}
+
+/* ==========================================================================
+   2. EDITOR CARTOGRÁFICO INTERACTIVO (Layout y Barra Superior)
+   ========================================================================== */
+.map-editor-container {
+  height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+}
+
+/* Barra superior del editor */
+.map-editor-toolbar {
+  height: 48px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-md);
+  gap: var(--space-md);
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.map-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-title-badge {
+  font-family: var(--font-serif);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+
+.map-toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-subtle);
+  margin: 0 4px;
+}
+
+/* Espacio de trabajo de 3 columnas */
+.map-editor-workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   3. PANEL IZQUIERDO (Herramientas Geográficas & Drawer de Lugares)
+   ========================================================================== */
+.map-sidebar-left {
+  width: 280px;
+  background-color: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.map-sidebar-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-subtle);
+}
+
+.map-sidebar-tab-btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.map-sidebar-tab-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+}
+
+.map-sidebar-tab-btn.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background-color: var(--bg-surface);
+}
+
+.map-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Grupos de Herramientas Plegables */
+.map-tool-group {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--bg-surface);
+}
+
+.map-tool-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background-color: var(--bg-subtle);
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.map-tool-group-header:hover {
+  background-color: var(--bg-hover);
+}
+
+.map-tool-group-body {
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.map-tool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.map-tool-btn:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.map-tool-btn.is-active {
+  background-color: var(--accent-subtle, #FEF3C7);
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* Drawer de Lugares de Mundo (Drag & Drop) */
+.map-places-search-box {
+  margin-bottom: var(--space-xs);
+}
+
+.map-places-search-box input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.map-place-draggable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  cursor: grab;
+  transition: all var(--transition-fast);
+  font-size: 0.8125rem;
+}
+
+.map-place-draggable:hover {
+  background-color: var(--bg-subtle);
+  border-color: var(--accent);
+  transform: translateX(2px);
+}
+
+.map-place-draggable:active {
+  cursor: grabbing;
+}
+
+.map-place-draggable.is-placed {
+  opacity: 0.65;
+  background-color: var(--bg-subtle);
+}
+
+.map-place-draggable.is-placed .placed-indicator {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--bg-surface);
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* ==========================================================================
+   4. LIENZO CARTOGRÁFICO CENTRAL (Canvas 2D)
+   ========================================================================== */
+.map-canvas-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-canvas);
+  user-select: none;
+}
+
+.map-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+}
+
+.map-canvas.cursor-grab {
+  cursor: grab;
+}
+
+.map-canvas.cursor-grabbing {
+  cursor: grabbing;
+}
+
+.map-canvas.cursor-crosshair {
+  cursor: crosshair;
+}
+
+/* Badges flotantes sobre el lienzo */
+.map-viewport-info {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-zoom-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   5. PANEL DERECHO (Inspector Contextual)
+   ========================================================================== */
+.map-sidebar-right {
+  width: 290px;
+  background-color: var(--bg-surface);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+  padding: var(--space-md);
+  gap: var(--space-md);
+  z-index: 10;
+}
+
+.map-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-xs);
+}
+
+.map-inspector-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.map-inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.map-inspector-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.map-inspector-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.map-inspector-input-row input[type="number"],
+.map-inspector-input-row input[type="text"],
+.map-inspector-input-row select {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Bloque especial de entidad vinculada a Mundo */
+.map-world-entity-box {
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-world-entity-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.map-world-entity-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   6. POPOVER DE CAPAS & MODALES
+   ========================================================================== */
+.map-layers-popover {
+  position: absolute;
+  top: 52px;
+  right: var(--space-md);
+  width: 260px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 50;
+}
+
+.map-layer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.map-layer-controls {
+  display: flex;
+  gap: 4px;
+}
+
+/* ==========================================================================
+   7. MODO OSCURO ESPECÍFICO
+   ========================================================================== */
+:root[data-theme="dark"] .map-card {
+  background-color: var(--bg-surface);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .map-card:hover {
+  border-color: var(--border-strong);
+}
+
+:root[data-theme="dark"] .map-editor-toolbar {
+  background-color: var(--bg-surface);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .map-sidebar-left,
+:root[data-theme="dark"] .map-sidebar-right {
+  background-color: var(--bg-surface);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .map-tool-group {
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .map-tool-btn {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-subtle);
+}
+
+:root[data-theme="dark"] .map-tool-btn:hover {
+  background-color: var(--bg-subtle);
+}
+
+:root[data-theme="dark"] .map-tool-btn.is-active {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+  border-color: #F59E0B;
+}
+
+:root[data-theme="dark"] .map-world-entity-box {
+  background-color: var(--bg-surface-elevated);
+  border-color: var(--border-strong);
+}

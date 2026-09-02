@@ -1,12 +1,12 @@
 /* Writer OS — Almacén Central Reactivo y Persistencia */
 
 import { sampleProjectData } from './sampleData.js';
-import { countWords, createProject, createChapter, createCharacter, createNote, createGroup, createRelationship, createPlace, PLACE_CATEGORIES, PLACE_TYPES_BY_CATEGORY } from './types.js';
+import { countWords, createProject, createChapter, createCharacter, createNote, createGroup, createRelationship, createPlace, createMap, createMapElement, MAP_PRESETS, PLACE_CATEGORIES, PLACE_TYPES_BY_CATEGORY } from './types.js';
 
 const STORAGE_KEY = 'writer_os_storage_v1';
 const ACTIVE_PROJECT_KEY = 'writer_os_active_project_id';
 const THEME_KEY = 'writer_os_theme';
-const CURRENT_SCHEMA_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 4;
 
 class Store {
   constructor() {
@@ -19,7 +19,8 @@ class Store {
       notes: [],
       groups: [],
       relationships: [],
-      places: []
+      places: [],
+      maps: []
     };
     this.activeProjectId = null;
     this.theme = 'light';
@@ -49,7 +50,8 @@ class Store {
           notes: parsed.notes || [],
           groups: parsed.groups || [],
           relationships: parsed.relationships || [],
-          places: parsed.places || []
+          places: parsed.places || [],
+          maps: parsed.maps || []
         };
 
         // Migración de esquema si proviene de versión previa
@@ -57,6 +59,7 @@ class Store {
           if (!this.data.groups) this.data.groups = [];
           if (!this.data.relationships) this.data.relationships = [];
           if (!this.data.places) this.data.places = [];
+          if (!this.data.maps) this.data.maps = [];
           this.schemaVersion = CURRENT_SCHEMA_VERSION;
           this.save();
         }
@@ -73,6 +76,12 @@ class Store {
               if (p.mapData) p.mapData.color = '#0891B2';
             }
           });
+        }
+
+        // Auto-rehidratación de mapas de muestra para 'proj-susurro-sombras' si está vacío
+        const sampleMapsCount = (this.data.maps || []).filter(m => m.projectId === 'proj-susurro-sombras').length;
+        if (this.data.projects.some(p => p.id === 'proj-susurro-sombras') && sampleMapsCount === 0) {
+          this.restoreSampleMapsData('proj-susurro-sombras');
         }
       } else {
         // Inicializar con datos de muestra solo en instalación limpia
@@ -124,6 +133,14 @@ class Store {
     this.save();
   }
 
+  restoreSampleMapsData(projectId = 'proj-susurro-sombras') {
+    if (projectId !== 'proj-susurro-sombras') return;
+    this.data.maps = (this.data.maps || []).filter(m => m.projectId !== projectId);
+    const sampleMaps = JSON.parse(JSON.stringify(sampleProjectData.maps || []));
+    this.data.maps.push(...sampleMaps);
+    this.save();
+  }
+
   loadSampleData() {
     this.data = {
       projects: [sampleProjectData.project],
@@ -132,7 +149,8 @@ class Store {
       notes: [...sampleProjectData.notes],
       groups: [...(sampleProjectData.groups || [])],
       relationships: [...(sampleProjectData.relationships || [])],
-      places: [...(sampleProjectData.places || [])]
+      places: [...(sampleProjectData.places || [])],
+      maps: [...(sampleProjectData.maps || [])]
     };
     this.save();
   }
@@ -980,6 +998,17 @@ class Store {
       }
     });
 
+    // 4. Desvincular representaciones cartográficas en mapas del proyecto (sin destruir los elementos)
+    (this.data.maps || []).forEach(m => {
+      if (m.projectId === projectId && Array.isArray(m.elements)) {
+        m.elements.forEach(el => {
+          if (el.placeId === id) {
+            el.placeId = null;
+          }
+        });
+      }
+    });
+
     this.touchProject(projectId);
     this.save();
   }
@@ -1232,7 +1261,129 @@ class Store {
         );
       });
 
-    return { projects, chapters, characters, notes, groups, relationships, places };
+    const maps = (this.data.maps || [])
+      .filter(m => !activeId || m.projectId === activeId)
+      .filter(m =>
+        m.name.toLowerCase().includes(q) ||
+        (m.description && m.description.toLowerCase().includes(q))
+      );
+
+    return { projects, chapters, characters, notes, groups, relationships, places, maps };
+  }
+
+  /* ==========================================================================
+     Módulo de Mapas Cartográficos
+     ========================================================================== */
+  getMaps(projectId = this.activeProjectId) {
+    if (!projectId) return [];
+    return (this.data.maps || [])
+      .filter(m => m.projectId === projectId)
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+  }
+
+  getMap(id, projectId = null) {
+    return (this.data.maps || []).find(m => m.id === id && (!projectId || m.projectId === projectId)) || null;
+  }
+
+  createMap(params) {
+    const projectId = params.projectId || this.activeProjectId;
+    if (!projectId) return null;
+    const map = createMap({ ...params, projectId });
+    if (!this.data.maps) this.data.maps = [];
+    this.data.maps.push(map);
+    this.touchProject(projectId);
+    this.save();
+    return map;
+  }
+
+  updateMap(id, patch = {}) {
+    const map = this.getMap(id);
+    if (!map) return null;
+
+    if (patch.name !== undefined) map.name = patch.name.trim() || map.name;
+    if (patch.description !== undefined) map.description = patch.description.trim();
+    if (patch.preset !== undefined && MAP_PRESETS[patch.preset]) map.preset = patch.preset;
+    if (patch.width !== undefined) map.width = Math.max(800, Number(patch.width) || map.width);
+    if (patch.height !== undefined) map.height = Math.max(600, Number(patch.height) || map.height);
+    if (patch.parentMapId !== undefined) map.parentMapId = patch.parentMapId;
+    if (patch.layers !== undefined && Array.isArray(patch.layers)) map.layers = patch.layers;
+    if (patch.elements !== undefined && Array.isArray(patch.elements)) map.elements = patch.elements;
+    if (patch.referenceImage !== undefined) map.referenceImage = patch.referenceImage;
+
+    map.updatedAt = new Date().toISOString();
+    this.touchProject(map.projectId);
+    this.save();
+    return map;
+  }
+
+  deleteMap(id) {
+    const map = this.getMap(id);
+    if (!map) return false;
+    const projectId = map.projectId;
+    this.data.maps = (this.data.maps || []).filter(m => m.id !== id);
+    this.touchProject(projectId);
+    this.save();
+    return true;
+  }
+
+  duplicateMap(id) {
+    const original = this.getMap(id);
+    if (!original) return null;
+    const now = new Date().toISOString();
+    const cloned = JSON.parse(JSON.stringify(original));
+    cloned.id = 'map-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    cloned.name = `${original.name} (Copia)`;
+    cloned.createdAt = now;
+    cloned.updatedAt = now;
+    // Reasignar IDs de elementos para independencia total
+    if (Array.isArray(cloned.elements)) {
+      cloned.elements.forEach(el => {
+        el.id = 'elem-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        el.mapId = cloned.id;
+      });
+    }
+    this.data.maps.push(cloned);
+    this.touchProject(cloned.projectId);
+    this.save();
+    return cloned;
+  }
+
+  addMapElement(mapId, elementParams) {
+    const map = this.getMap(mapId);
+    if (!map) return null;
+    const element = createMapElement({ ...elementParams, mapId });
+    if (!Array.isArray(map.elements)) map.elements = [];
+    map.elements.push(element);
+    map.updatedAt = new Date().toISOString();
+    this.touchProject(map.projectId);
+    this.save();
+    return element;
+  }
+
+  updateMapElement(mapId, elementId, patch = {}) {
+    const map = this.getMap(mapId);
+    if (!map || !Array.isArray(map.elements)) return null;
+    const idx = map.elements.findIndex(el => el.id === elementId);
+    if (idx === -1) return null;
+
+    map.elements[idx] = {
+      ...map.elements[idx],
+      ...patch
+    };
+    map.updatedAt = new Date().toISOString();
+    this.touchProject(map.projectId);
+    this.save();
+    return map.elements[idx];
+  }
+
+  removeMapElement(mapId, elementId) {
+    const map = this.getMap(mapId);
+    if (!map || !Array.isArray(map.elements)) return false;
+    map.elements = map.elements.filter(el => el.id !== elementId);
+    map.updatedAt = new Date().toISOString();
+    this.touchProject(map.projectId);
+    this.save();
+    return true;
   }
 
   /* ==========================================================================
@@ -1240,6 +1391,7 @@ class Store {
      ========================================================================== */
   exportData() {
     return JSON.stringify({
+      version: this.schemaVersion || CURRENT_SCHEMA_VERSION,
       schemaVersion: this.schemaVersion || CURRENT_SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
       projects: this.data.projects,
@@ -1248,7 +1400,8 @@ class Store {
       notes: this.data.notes,
       groups: this.data.groups,
       relationships: this.data.relationships,
-      places: this.data.places || []
+      places: this.data.places || [],
+      maps: this.data.maps || []
     }, null, 2);
   }
 
@@ -1395,6 +1548,26 @@ class Store {
         return true;
       });
 
+      // Validar y sanear mapas cartográficos
+      const rawMaps = (parsed.maps || []).filter(m => m && m.id && projectIds.has(m.projectId));
+      const maps = rawMaps.map(m => {
+        const placesInProj = placeMapByProj.get(m.projectId);
+        const elements = (m.elements || []).map(el => {
+          let placeId = el.placeId;
+          if (placeId && (!placesInProj || !placesInProj.has(placeId))) {
+            placeId = null;
+          }
+          return {
+            ...el,
+            placeId
+          };
+        });
+        return {
+          ...m,
+          elements
+        };
+      });
+
       this.data = {
         projects,
         chapters,
@@ -1402,7 +1575,8 @@ class Store {
         notes,
         groups,
         relationships,
-        places
+        places,
+        maps
       };
       if (this.data.projects.length > 0) {
         this.activeProjectId = this.data.projects[0].id;

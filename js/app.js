@@ -11,11 +11,12 @@ import { EditorView } from './views/editorView.js';
 import { CharactersView } from './views/charactersView.js';
 import { RelationshipsView } from './views/relationshipsView.js';
 import { WorldView } from './views/worldView.js';
+import { MapsView } from './views/mapsView.js';
 import { NotesView } from './views/notesView.js';
 
 class App {
   constructor() {
-    this.currentView = 'projects'; // 'projects' | 'overview' | 'editor' | 'characters' | 'relationships' | 'world' | 'notes'
+    this.currentView = 'projects'; // 'projects' | 'overview' | 'editor' | 'characters' | 'relationships' | 'world' | 'maps' | 'notes'
     this.viewParams = {};
 
     this.views = {
@@ -25,6 +26,7 @@ class App {
       characters: new CharactersView(this),
       relationships: new RelationshipsView(this),
       world: new WorldView(this),
+      maps: new MapsView(this),
       notes: new NotesView(this)
     };
 
@@ -71,6 +73,7 @@ class App {
         personajes: 'characters',
         relaciones: 'relationships',
         mundo: 'world',
+        mapas: 'maps',
         notas: 'notes'
       };
 
@@ -80,6 +83,7 @@ class App {
         characterId: parts[3] || null,
         charId: parts[3] || null,
         placeId: parts[3] || null,
+        mapId: parts[3] || null,
         noteId: parts[3] || null,
         relId: parts[3] || null,
         mode: parts[4] || null
@@ -108,6 +112,7 @@ class App {
       characters: 'personajes',
       relationships: 'relaciones',
       world: 'mundo',
+      maps: 'mapas',
       notes: 'notas'
     };
 
@@ -116,6 +121,7 @@ class App {
     if (params.chapterId) extra = `/${params.chapterId}`;
     else if (params.characterId) extra = `/${params.characterId}`;
     else if (params.placeId) extra = `/${params.placeId}`;
+    else if (params.mapId) extra = `/${params.mapId}`;
     else if (params.noteId) extra = `/${params.noteId}`;
 
     window.location.hash = `#/proyecto/${activeProject.id}/${slug}${extra}`;
@@ -186,6 +192,10 @@ class App {
           <button class="nav-tab ${this.currentView === 'world' ? 'is-active' : ''}" data-nav="world">
             <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
             <span>Mundo</span>
+          </button>
+          <button class="nav-tab ${this.currentView === 'maps' ? 'is-active' : ''}" data-nav="maps">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>
+            <span>Mapas</span>
           </button>
           <button class="nav-tab ${this.currentView === 'notes' ? 'is-active' : ''}" data-nav="notes">
             <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -270,6 +280,8 @@ class App {
         const pl = store.getPlace(payload.placeId, payload.projectId);
         if (pl) this.views.world.openPlaceDetailModal(pl, payload.projectId);
       }, 150);
+    } else if (action === 'open-map') {
+      this.navigate('maps', payload.projectId, { mapId: payload.mapId });
     } else if (action === 'create-chapter') {
       if (activeProject) {
         const chapters = store.getChapters(activeProject.id);
@@ -300,6 +312,11 @@ class App {
       if (activeProject) {
         this.navigate('world', activeProject.id);
         setTimeout(() => this.views.world.openPlaceModal(null, activeProject.id), 150);
+      }
+    } else if (action === 'create-map') {
+      if (activeProject) {
+        this.navigate('maps', activeProject.id);
+        setTimeout(() => this.views.maps.openMapModal(null, activeProject.id), 150);
       }
     } else if (action === 'create-note') {
       if (activeProject) {

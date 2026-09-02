@@ -32,6 +32,19 @@ export function estimateReadingTime(words) {
 }
 
 /**
+ * Escapa caracteres HTML para renderizado seguro en plantillas
+ */
+export function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Fábrica de Proyecto
  */
 export function createProject({
@@ -450,15 +463,170 @@ export function createPlace({
 }
 
 /**
- * Utilidad para sanear cadenas de texto e impedir inyección de HTML no deseado
+ * Presets de Estilo Visual para Mapas Cartográficos
  */
-export function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+export const MAP_PRESETS = {
+  editorial: {
+    id: 'editorial',
+    name: 'Editorial (Papel Crema)',
+    bg: '#FBF8F3',
+    gridColor: 'rgba(92, 61, 46, 0.06)',
+    stroke: '#524636',
+    accent: '#B45309',
+    waterBg: '#D4E6EB',
+    waterStroke: '#88AFB8',
+    textColor: '#2D261E',
+    haloColor: 'rgba(251, 248, 243, 0.85)'
+  },
+  fantasia: {
+    id: 'fantasia',
+    name: 'Fantasía Clásica (Pergamino)',
+    bg: '#F4ECCF',
+    gridColor: 'rgba(62, 43, 28, 0.07)',
+    stroke: '#3E2B1C',
+    accent: '#D97706',
+    waterBg: '#BDD2C6',
+    waterStroke: '#688B77',
+    textColor: '#291C12',
+    haloColor: 'rgba(244, 236, 207, 0.85)'
+  },
+  moderno: {
+    id: 'moderno',
+    name: 'Moderno (Topográfico Claro)',
+    bg: '#FAFAFA',
+    gridColor: 'rgba(51, 65, 85, 0.08)',
+    stroke: '#334155',
+    accent: '#0284C7',
+    waterBg: '#E0F2FE',
+    waterStroke: '#7DD3FC',
+    textColor: '#0F172A',
+    haloColor: 'rgba(255, 255, 255, 0.85)'
+  },
+  nocturno: {
+    id: 'nocturno',
+    name: 'Nocturno (Tinta Cósmica)',
+    bg: '#14171F',
+    gridColor: 'rgba(148, 163, 184, 0.07)',
+    stroke: '#94A3B8',
+    accent: '#F59E0B',
+    waterBg: '#1B2433',
+    waterStroke: '#38BDF8',
+    textColor: '#F1F5F9',
+    haloColor: 'rgba(20, 23, 31, 0.85)'
+  },
+  boceto: {
+    id: 'boceto',
+    name: 'Boceto (Tinta y Pluma)',
+    bg: '#FFFFFF',
+    gridColor: 'rgba(0, 0, 0, 0.05)',
+    stroke: '#1F2937',
+    accent: '#4B5563',
+    waterBg: '#F8FAFC',
+    waterStroke: '#94A3B8',
+    textColor: '#111827',
+    haloColor: 'rgba(255, 255, 255, 0.9)'
+  }
+};
+
+/**
+ * Capas cartográficas predeterminadas
+ */
+export const MAP_DEFAULT_LAYERS = [
+  { id: 'layer-terreno', name: 'Terreno y Relieve', zIndex: 10, visible: true, locked: false },
+  { id: 'layer-agua', name: 'Agua y Costas', zIndex: 20, visible: true, locked: false },
+  { id: 'layer-infra', name: 'Vías e Infraestructura', zIndex: 30, visible: true, locked: false },
+  { id: 'layer-lugares', name: 'Lugares y Asentamientos', zIndex: 40, visible: true, locked: false },
+  { id: 'layer-anotaciones', name: 'Rótulos y Anotaciones', zIndex: 50, visible: true, locked: false }
+];
+
+/**
+ * Fábrica de Mapa Cartográfico
+ */
+export function createMap({
+  projectId,
+  name = 'Nuevo Mapa',
+  description = '',
+  preset = 'editorial',
+  width = 3200,
+  height = 2200,
+  parentMapId = null,
+  layers = null,
+  elements = [],
+  referenceImage = null
+} = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: generateId(),
+    projectId,
+    name: name.trim() || 'Mapa sin título',
+    description: description.trim(),
+    preset: MAP_PRESETS[preset] ? preset : 'editorial',
+    width: Math.max(800, Number(width) || 3200),
+    height: Math.max(600, Number(height) || 2200),
+    parentMapId: parentMapId || null,
+    layers: Array.isArray(layers) && layers.length > 0 ? layers : JSON.parse(JSON.stringify(MAP_DEFAULT_LAYERS)),
+    elements: Array.isArray(elements) ? elements : [],
+    referenceImage: referenceImage ? {
+      url: referenceImage.url || '',
+      opacity: referenceImage.opacity !== undefined ? Number(referenceImage.opacity) : 0.5,
+      visible: referenceImage.visible !== undefined ? !!referenceImage.visible : true,
+      locked: referenceImage.locked !== undefined ? !!referenceImage.locked : false
+    } : null,
+    createdAt: now,
+    updatedAt: now
+  };
 }
+
+/**
+ * Fábrica de Elemento Cartográfico en Lienzo
+ */
+export function createMapElement({
+  mapId,
+  placeId = null,
+  type = 'point', // 'point' | 'line' | 'area' | 'annotation'
+  layerId = 'layer-lugares',
+  x = 0,
+  y = 0,
+  points = [],
+  size = 28,
+  icon = 'marcador',
+  label = '',
+  showLabel = true,
+  labelSize = 13,
+  color = '#B45309',
+  strokeColor = '#524636',
+  strokeWidth = 2,
+  fillColor = '#D4E6EB',
+  fillOpacity = 0.25,
+  lineDash = 'solid', // 'solid' | 'dashed' | 'dotted'
+  isLocked = false,
+  isVisible = true,
+  customData = {}
+} = {}) {
+  return {
+    id: generateId(),
+    mapId,
+    placeId: placeId || null,
+    type: ['point', 'line', 'area', 'annotation'].includes(type) ? type : 'point',
+    layerId: layerId || 'layer-lugares',
+    x: Number(x) || 0,
+    y: Number(y) || 0,
+    points: Array.isArray(points) ? points.map(pt => ({ x: Number(pt.x) || 0, y: Number(pt.y) || 0 })) : [],
+    size: Math.max(10, Number(size) || 28),
+    icon: icon || 'marcador',
+    label: (label || '').trim(),
+    showLabel: showLabel !== false,
+    labelSize: Math.max(9, Math.min(48, Number(labelSize) || 13)),
+    color: color || '#B45309',
+    strokeColor: strokeColor || '#524636',
+    strokeWidth: Math.max(1, Number(strokeWidth) || 2),
+    fillColor: fillColor || '#D4E6EB',
+    fillOpacity: Math.max(0, Math.min(1, Number(fillOpacity) !== undefined ? Number(fillOpacity) : 0.25)),
+    lineDash: ['solid', 'dashed', 'dotted'].includes(lineDash) ? lineDash : 'solid',
+    isLocked: !!isLocked,
+    isVisible: isVisible !== false,
+    customData: customData || {}
+  };
+}
+
 

@@ -59,7 +59,33 @@
     - Vías e infraestructuras con origen, destino, paradas intermedias, distancia y duración estimada.
     - Bloque de gobernantes, autoridades y personajes vinculados con navegación bidireccional inmediata.
     - Casas, facciones y notas creativas contextuales.
-  - **Preparación cartográfica mínima**: Modelo de datos estructurado para soportar coordenadas, dimensiones y geometría en el futuro editor de mapas.
+- **Mapas y Cartografía (Editor Cartográfico Interactivo)**:
+  - **Sección independiente conectada con Mundo y Lugares**:
+    - *Mundo*: Datos enciclopédicos, fichas, jerarquías y relaciones entre lugares.
+    - *Mapas*: Representación visual, territorial y topográfica en lienzos cartográficos interactivos.
+  - **Biblioteca de Mapas por Proyecto**:
+    - Creación, duplicación, edición de metadatos y eliminación segura de mapas independientes.
+    - Soporte para dimensiones personalizadas (hasta 10.000 × 10.000 px) y jerarquía territorial opcional entre mapas.
+    - Precargado con la carta náutica de muestra en *"El Susurro de las Sombras"*.
+  - **Editor Cartográfico en Tres Zonas**:
+    - **Barra de Herramientas Geográficas (Izquierda)**:
+      - Grupos plegables por categoría: *Navegación* (Seleccionar, Mano/Pan, Borrador), *Terreno y Relieve* (Montañas, Cordilleras, Colinas, Valles, Bosques, Desiertos, Volcanes, Cuevas), *Agua y Costas* (Ríos, Mares, Lagos, Costas, Islas), *Vías e Infraestructura* (Carreteras, Caminos, Puentes, Murallas, Fronteras) y *Anotaciones* (Marcadores, Flechas, Rótulos de texto libre).
+      - **Drawer de Lugares de Mundo**: Panel interactivo con buscador en tiempo real para arrastrar y soltar (*drag & drop*) o posicionar directamente lugares existentes de Mundo en el lienzo cartográfico.
+    - **Lienzo Cartográfico (Centro)**:
+      - Motor Canvas 2D nativo de alto rendimiento sin dependencias pesadas.
+      - Navegación espacial fluida: zoom continuo con rueda centrado dinámicamente en el ratón, desplazamiento (*pan*) con botón central o manteniendo la barra espaciadora.
+      - Modos de selección unitaria y por recuadro múltiple (*box select*), arrastre de conjuntos de elementos y edición interactiva de vértices para líneas y polígonos.
+      - Sistema completo de Deshacer / Rehacer (`Ctrl + Z` / `Ctrl + Shift + Z`), botón de recentrado y botón de ajuste automático a la pantalla (*Fit to screen*).
+    - **Inspector Contextual (Derecha)**:
+      - Propiedades globales del mapa (dimensiones, descripción y exportación en imagen PNG de alta resolución).
+      - Propiedades del elemento seleccionado: capa, posición X/Y, tamaño de símbolo, grosor de trazo, estilo de línea (continua, discontinua, punteada), opacidad de relleno y rótulos con halos de contraste para legibilidad sobre cualquier textura.
+      - **Integración profunda con Mundo**: Los elementos vinculados a lugares de Mundo muestran un bloque dedicado con salto directo en un clic (**«Ver en Mundo»**) para consultar o editar la ficha wiki sin fricción.
+  - **Sistema de Capas**: Cinco capas canónicas (*Terreno*, *Agua*, *Infraestructura*, *Lugares*, *Anotaciones*) con popover de control para alternar visibilidad y ordenación.
+  - **Presets Visuales de Estilo**: Selector instantáneo entre 5 paletas cartográficas (*Editorial*, *Fantasía*, *Moderno*, *Nocturno*, *Boceto*) con soporte nativo de los modos Claro y Oscuro de la aplicación.
+  - **Capa de Imagen de Referencia**: Permite cargar un boceto a mano, mapa escaneado o imagen guía de fondo con opacidad graduable para calcar territorios narrativos.
+  - **Generador Procedural de Mundo («Generar mundo»)**: Algoritmo heurístico determinista (con semilla replicable) que modela cordilleras en cadena, cuencas fluviales que desembocan en el mar, costas, bosques y asentamientos estratégicos, integrando lugares existentes de Mundo en una propuesta previa descartable o aplicable.
+  - **Reorganización Estética («Reorganizar lugares»)**: Redistribución espacial de enclaves basada en distancias armónicas sin alterar los registros ni las jerarquías de Mundo.
+  - **Borrado no destructivo**: Eliminar un enclave en el mapa no borra la entidad de Mundo; eliminar un lugar en Mundo desvincula la referencia cartográfica de forma transparente y segura sin corromper el mapa.
 - **Cuaderno de Notas e Ideas**:
   - Repositorio de ideas de trama, ambientación, investigación y misterios.
   - Organización por etiquetas dinámicas (#mundo, #magia, #trama, #misterio, #investigación).
@@ -109,7 +135,8 @@ writer-os/
 │   ├── editor.css               # Espacio de escritura, barra de herramientas e inspector lateral
 │   ├── components.css           # Botones, formularios, modales, tarjetas, badges y toasts
 │   ├── relationships.css        # Estilos para tarjetas de relación, grafo de red y árbol de linaje
-│   └── world.css                # Estilos para explorador de lugares, árbol jerárquico y red espacial
+│   ├── world.css                # Estilos para explorador de lugares y árbol jerárquico
+│   └── maps.css                 # Estilos para biblioteca de mapas, herramientas e inspector cartográfico
 └── js/
     ├── app.js                   # Enrutador hash y controlador de ciclo de vida de la aplicación
     ├── models/
@@ -122,7 +149,8 @@ writer-os/
     │   ├── editorView.js        # Editor de escritura y panel contextual de escena
     │   ├── charactersView.js    # Directorio de personajes y fichas con bloque relacional
     │   ├── relationshipsView.js # Vista de relaciones (estructurada, red en canvas y linaje)
-    │   ├── worldView.js         # Vista de Mundo (explorador, árbol jerárquico y red en canvas)
+    │   ├── worldView.js         # Vista de Mundo (explorador por categorías y árbol jerárquico)
+    │   ├── mapsView.js          # Editor Cartográfico Interactivo (Canvas 2D, capas, inspector y generador)
     │   └── notesView.js         # Cuaderno de notas creativas y etiquetas
     └── components/
         ├── commandPalette.js    # Paleta de comandos universal y buscador global (Ctrl + K)
@@ -136,10 +164,10 @@ writer-os/
 
 La arquitectura modular de Writer OS está concebida para continuar expandiéndose progresivamente hacia las siguientes capas narrativas:
 
-- **Mapa Interactivo del Mundo**: Cartografía interactiva sobre el sistema de Mundo y Lugares ya implementado, con marcadores visuales, capas territoriales y niebla de exploración.
 - **Líneas Temporales y Cronología**: Gestión del tiempo del relato frente al tiempo de la historia, eras, calendarios ficticios y fechas de acontecimientos.
 - **Control de Continuidad**: Motor de coherencia narrativa para rastrear qué sabe cada personaje en cada capítulo, secretos y estado de pistas.
 - **Objetos y Artefactos Clave**: Reliquias, documentos, armas, cartas náuticas e inventario de elementos cruciales para la trama.
 - **Sistemas Políticos y Culturas**: Leyes, tradiciones, religiones, lenguas, monedas y estructuras de poder profundas.
+- **Jerarquías Cartográficas Multinivel**: Navegación fluida entre mapa mundial, mapas continentales y planos de ciudades o fortalezas.
 - **Conocimiento Conectado**: Grafo narrativo global navegable entre todos los componentes de la obra.
 - **Asistencia Creativa Contextual**: Herramientas de apoyo al escritor respetuosas con su voz y centradas en la coherencia de su universo.

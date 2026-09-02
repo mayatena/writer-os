@@ -276,6 +276,31 @@ class CommandPalette {
         });
       }
 
+      // Resultados en Mapas
+      if (results.maps && results.maps.length > 0) {
+        html += `<div class="palette-group-title">Mapas y Cartografía</div>`;
+        results.maps.forEach(m => {
+          const itemIndex = this.items.length;
+          this.items.push({
+            type: 'map',
+            action: () => {
+              if (this.onActionCallback) {
+                this.onActionCallback('open-map', { mapId: m.id, projectId: m.projectId });
+              }
+            }
+          });
+          html += `
+            <div class="palette-item ${itemIndex === this.selectedIndex ? 'is-selected' : ''}" data-index="${itemIndex}">
+              <div class="palette-item-left">
+                <svg class="icon" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>
+                <span>${escapeHtml(m.name)}</span>
+              </div>
+              <span class="palette-item-badge">Mapa</span>
+            </div>
+          `;
+        });
+      }
+
       // Resultados en Proyectos
       if (results.projects.length > 0) {
         html += `<div class="palette-group-title">Proyectos</div>`;
@@ -352,6 +377,12 @@ class CommandPalette {
         action: () => this.onActionCallback?.('create-place')
       });
       actions.push({
+        title: 'Crear nuevo mapa',
+        badge: 'Acción',
+        icon: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line>',
+        action: () => this.onActionCallback?.('create-map')
+      });
+      actions.push({
         title: 'Ir a Escribir',
         badge: 'Navegación',
         icon: '<path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle>',
@@ -372,7 +403,7 @@ class CommandPalette {
       actions.push({
         title: 'Ir a Relaciones y Estructuras',
         badge: 'Navegación',
-        icon: '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>',
+        icon: '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>',
         action: () => this.onActionCallback?.('navigate', { view: 'relationships' })
       });
       actions.push({
@@ -380,6 +411,12 @@ class CommandPalette {
         badge: 'Navegación',
         icon: '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>',
         action: () => this.onActionCallback?.('navigate', { view: 'world' })
+      });
+      actions.push({
+        title: 'Ir a Mapas y Cartografía',
+        badge: 'Navegación',
+        icon: '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line>',
+        action: () => this.onActionCallback?.('navigate', { view: 'maps' })
       });
       actions.push({
         title: 'Ir a Notas',
