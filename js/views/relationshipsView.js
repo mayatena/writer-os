@@ -1211,12 +1211,12 @@ export class RelationshipsView {
                 </optgroup>
                 ${groups.length > 0 ? `
                   <optgroup label="Casas y Organizaciones">
-                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialSourceId === g.id ? 'selected' : ''}>🏛️ ${escapeHtml(g.name)}</option>`).join('')}
+                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialSourceId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
                 ${places.length > 0 ? `
                   <optgroup label="Mundo y Lugares">
-                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialSourceId === p.id ? 'selected' : ''}>📍 ${escapeHtml(p.name)}</option>`).join('')}
+                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialSourceId === p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
               </select>
@@ -1230,12 +1230,12 @@ export class RelationshipsView {
                 </optgroup>
                 ${groups.length > 0 ? `
                   <optgroup label="Casas y Organizaciones">
-                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialTargetId === g.id ? 'selected' : ''}>🏛️ ${escapeHtml(g.name)}</option>`).join('')}
+                    ${groups.map(g => `<option value="group:${escapeHtml(g.id)}" ${initialTargetId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
                 ${places.length > 0 ? `
                   <optgroup label="Mundo y Lugares">
-                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialTargetId === p.id ? 'selected' : ''}>📍 ${escapeHtml(p.name)}</option>`).join('')}
+                    ${places.map(p => `<option value="place:${escapeHtml(p.id)}" ${initialTargetId === p.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
                   </optgroup>
                 ` : ''}
               </select>

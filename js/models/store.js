@@ -1,7 +1,7 @@
 /* Writer OS — Almacén Central Reactivo y Persistencia */
 
 import { sampleProjectData } from './sampleData.js';
-import { countWords, createProject, createChapter, createCharacter, createNote, createGroup, createRelationship, createPlace } from './types.js';
+import { countWords, createProject, createChapter, createCharacter, createNote, createGroup, createRelationship, createPlace, PLACE_CATEGORIES, PLACE_TYPES_BY_CATEGORY } from './types.js';
 
 const STORAGE_KEY = 'writer_os_storage_v1';
 const ACTIVE_PROJECT_KEY = 'writer_os_active_project_id';
@@ -756,6 +756,26 @@ class Store {
     }).filter(m => m.character !== null);
   }
 
+  getGroupRelationships(groupId, projectId = this.activeProjectId) {
+    const allRels = this.getRelationships(projectId);
+    return allRels.filter(r => r.sourceId === groupId || r.targetId === groupId).map(rel => {
+      const isSource = rel.sourceId === groupId;
+      const otherId = isSource ? rel.targetId : rel.sourceId;
+      const otherEntity = this.getEntity(otherId, projectId);
+
+      const myRole = isSource ? (rel.roleSource || rel.type) : (rel.roleTarget || rel.roleSource || rel.type);
+      const otherRole = isSource ? (rel.roleTarget || rel.roleSource || rel.type) : (rel.roleSource || rel.type);
+
+      return {
+        relationship: rel,
+        otherEntity,
+        isSource,
+        myRole,
+        otherRole
+      };
+    }).filter(item => item.otherEntity !== null);
+  }
+
   /* ==========================================================================
      Mundo y Lugares (Worldbuilding)
      ========================================================================== */
@@ -788,6 +808,25 @@ class Store {
   validatePlace(params, projectId, currentPlaceId = null) {
     if (!projectId) return { valid: false, error: 'Se requiere un identificador de proyecto válido' };
     if (!params.name || !params.name.trim()) return { valid: false, error: 'El lugar debe tener un nombre' };
+
+    // Validar categoría y compatibilidad de tipo
+    if (params.category) {
+      if (!PLACE_CATEGORIES[params.category]) {
+        return { valid: false, error: `Categoría espacial inválida: ${params.category}` };
+      }
+      if (params.type) {
+        const allowedTypes = (PLACE_TYPES_BY_CATEGORY[params.category] || []).map(t => t.id);
+        const isCustom = params.type.endsWith('_personalizado') || params.type === 'otro' || params.type === 'personalizado';
+        if (!allowedTypes.includes(params.type) && !isCustom) {
+          // Si el tipo pertenece a otra categoría conocida, rechazar por incompatibilidad
+          for (const [otherCat, otherTypes] of Object.entries(PLACE_TYPES_BY_CATEGORY)) {
+            if (otherCat !== params.category && otherTypes.some(t => t.id === params.type)) {
+              return { valid: false, error: `El tipo '${params.type}' no pertenece a la categoría '${params.category}'` };
+            }
+          }
+        }
+      }
+    }
 
     // Validar parentId
     if (params.parentId) {
@@ -1242,20 +1281,24 @@ class Store {
         };
       });
 
-      // Re-comprobar ciclos simples en jerarquía tras sanitización
+      // Re-comprobar ciclos en jerarquía tras sanitización
       const finalPlacesMap = new Map(places.map(p => [p.id, p]));
       places.forEach(p => {
         if (p.parentId) {
+          if (p.parentId === p.id) {
+            p.parentId = null;
+            return;
+          }
           let curr = finalPlacesMap.get(p.parentId);
           const visited = new Set([p.id]);
           let hasCycle = false;
-          while (curr && curr.parentId) {
-            if (visited.has(curr.parentId)) {
+          while (curr) {
+            if (visited.has(curr.id)) {
               hasCycle = true;
               break;
             }
             visited.add(curr.id);
-            curr = finalPlacesMap.get(curr.parentId);
+            curr = curr.parentId ? finalPlacesMap.get(curr.parentId) : null;
           }
           if (hasCycle) p.parentId = null;
         }

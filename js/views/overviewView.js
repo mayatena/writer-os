@@ -1,7 +1,7 @@
 /* Writer OS — Vista de Resumen del Proyecto */
 
 import { store } from '../models/store.js';
-import { countWords } from '../models/types.js';
+import { countWords, getPlaceCategoryIcon } from '../models/types.js';
 
 export class OverviewView {
   constructor(app) {
@@ -261,7 +261,7 @@ export class OverviewView {
                   <div class="card card-clickable place-quick-row" data-place-id="${pl.id}" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                       <div style="width: 26px; height: 26px; border-radius: 6px; background-color: ${pl.color || 'var(--accent)'}20; color: ${pl.color || 'var(--accent)'}; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">
-                        ${pl.mapData?.icon || '📍'}
+                        ${getPlaceCategoryIcon(pl.category, 'icon icon-xs')}
                       </div>
                       <div>
                         <div style="font-size: 0.875rem; font-weight: 600;">${pl.name}</div>

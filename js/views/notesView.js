@@ -76,7 +76,7 @@ export class NotesView {
         </div>
 
         <!-- Cuadrícula de Notas -->
-        ${filteredNotes.length === 0 ? this.renderEmptyState(allNotes.length) : this.renderNotesGrid(filteredNotes)}
+        ${filteredNotes.length === 0 ? this.renderEmptyState(allNotes.length) : this.renderNotesGrid(filteredNotes, project.id)}
       </div>
     `;
 
@@ -113,7 +113,7 @@ export class NotesView {
     `;
   }
 
-  renderNotesGrid(notes) {
+  renderNotesGrid(notes, projectId = store.activeProjectId) {
     const cardsHtml = notes.map(n => {
       const formattedDate = new Date(n.updatedAt).toLocaleDateString('es-ES', {
         day: 'numeric',
@@ -121,7 +121,7 @@ export class NotesView {
         year: 'numeric'
       });
 
-      const linkedPlace = n.placeId ? store.getPlace(n.placeId, project.id) : null;
+      const linkedPlace = n.placeId ? store.getPlace(n.placeId, projectId) : null;
 
       return `
         <div class="card card-clickable note-card" data-note-id="${n.id}" style="display: flex; flex-direction: column; justify-content: space-between; min-height: 180px;">
@@ -131,8 +131,9 @@ export class NotesView {
                 <h2 style="font-size: 1.15rem; font-family: var(--font-serif); line-height: 1.3; margin: 0;">${n.title}</h2>
                 ${linkedPlace ? `
                   <div style="margin-top: 4px;">
-                    <span class="place-badge place-cat-${linkedPlace.category}" style="font-size: 0.6875rem;">
-                      ${linkedPlace.mapData?.icon || '📍'} ${linkedPlace.name}
+                    <span class="place-badge place-cat-${linkedPlace.category}" style="font-size: 0.6875rem; display: inline-flex; align-items: center; gap: 4px;">
+                      <svg class="icon" viewBox="0 0 24 24" style="width: 11px; height: 11px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                      <span>${linkedPlace.name}</span>
                     </span>
                   </div>
                 ` : ''}
@@ -263,7 +264,7 @@ export class NotesView {
               <option value="">-- Sin lugar asociado --</option>
               ${places.map(p => `
                 <option value="${p.id}" ${note && note.placeId === p.id ? 'selected' : ''}>
-                  ${p.mapData?.icon || '📍'} ${p.name} (${p.type})
+                  ${p.name} (${p.type})
                 </option>
               `).join('')}
             </select>

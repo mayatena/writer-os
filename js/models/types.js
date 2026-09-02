@@ -203,12 +203,32 @@ export function createNote({
  * Categorías y tipos de lugares para Mundo y Worldbuilding
  */
 export const PLACE_CATEGORIES = {
-  geografia: { id: 'geografia', label: 'Geografía Mayor', icon: '🗺️', color: '#B45309' },
-  asentamientos: { id: 'asentamientos', label: 'Asentamientos y Edificios', icon: '🏰', color: '#4F46E5' },
-  naturaleza: { id: 'naturaleza', label: 'Geografía Física y Natural', icon: '🌲', color: '#059669' },
-  infraestructura: { id: 'infraestructura', label: 'Infraestructura y Vías', icon: '🛤️', color: '#D97706' },
-  especiales: { id: 'especiales', label: 'Lugares Especiales', icon: '✨', color: '#7C3AED' }
+  geografia: { id: 'geografia', label: 'Geografía Mayor', color: '#B45309' },
+  asentamientos: { id: 'asentamientos', label: 'Asentamientos y Edificios', color: '#4F46E5' },
+  naturaleza: { id: 'naturaleza', label: 'Geografía Física y Natural', color: '#059669' },
+  infraestructura: { id: 'infraestructura', label: 'Infraestructura y Vías', color: '#D97706' },
+  especiales: { id: 'especiales', label: 'Lugares Especiales', color: '#7C3AED' }
 };
+
+/**
+ * Generador de iconos SVG consistentes con la identidad visual editorial de Writer OS
+ */
+export function getPlaceCategoryIcon(category, className = 'icon icon-sm') {
+  switch (category) {
+    case 'geografia':
+      return `<svg class="${className}" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`;
+    case 'asentamientos':
+      return `<svg class="${className}" viewBox="0 0 24 24"><path d="M4 21V9l2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2v12H4z"></path><path d="M9 21v-5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v5"></path></svg>`;
+    case 'naturaleza':
+      return `<svg class="${className}" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"></path></svg>`;
+    case 'infraestructura':
+      return `<svg class="${className}" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>`;
+    case 'especiales':
+      return `<svg class="${className}" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
+    default:
+      return `<svg class="${className}" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`;
+  }
+}
 
 export const PLACE_TYPES_BY_CATEGORY = {
   geografia: [

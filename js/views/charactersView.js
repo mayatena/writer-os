@@ -450,7 +450,7 @@ export class CharactersView {
                 <div class="card card-clickable char-modal-rel-item" data-entity-id="${escapeHtml(ent.id)}" data-entity-type="${escapeHtml(ent.type)}" style="padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem;">
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <div style="width: 22px; height: 22px; border-radius: ${isPlace ? '6px' : (isGrp ? '4px' : '50%')}; background-color: ${escapeHtml(ent.color)}; color: #FFF; font-size: 0.6875rem; font-weight: bold; display: flex; align-items: center; justify-content: center;">
-                      ${isPlace ? '📍' : escapeHtml(ent.name.charAt(0))}
+                      ${escapeHtml(ent.name.charAt(0).toUpperCase())}
                     </div>
                     <div>
                       <strong>${escapeHtml(ent.name)}</strong>

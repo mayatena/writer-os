@@ -3,7 +3,7 @@
 import { store } from '../models/store.js';
 import { modal } from '../components/modal.js';
 import { showToast } from '../components/toast.js';
-import { PLACE_CATEGORIES, PLACE_TYPES_BY_CATEGORY, escapeHtml } from '../models/types.js';
+import { PLACE_CATEGORIES, PLACE_TYPES_BY_CATEGORY, getPlaceCategoryIcon, escapeHtml } from '../models/types.js';
 
 export class WorldView {
   constructor(app) {
@@ -55,22 +55,22 @@ export class WorldView {
               <!-- Selector de Modos de Visualización -->
               <div class="world-subnav-modes">
                 <button class="world-subnav-btn ${this.currentMode === 'categories' ? 'is-active' : ''}" data-mode="categories" title="Explorador por Categorías">
-                  <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                   <span>Explorador</span>
                 </button>
                 <button class="world-subnav-btn ${this.currentMode === 'tree' ? 'is-active' : ''}" data-mode="tree" title="Árbol Jerárquico">
-                  <svg class="icon" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>
+                  <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>
                   <span>Jerarquía</span>
                 </button>
-                <button class="world-subnav-btn ${this.currentMode === 'network' ? 'is-active' : ''}" data-mode="network" title="Red Conceptual de Lugares">
-                  <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                <button class="world-subnav-btn ${this.currentMode === 'network' ? 'is-active' : ''}" data-mode="network" title="Red Conceptual de Conexiones">
+                  <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                   <span>Red Conceptual</span>
                 </button>
               </div>
 
               <!-- Botón Crear Nuevo Lugar -->
               <button class="btn btn-primary" id="btn-new-place">
-                <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 <span>Nuevo Lugar</span>
               </button>
             </div>
@@ -130,30 +130,36 @@ export class WorldView {
     }
 
     return `
-      <!-- Filtros por Categoría Espacial -->
+      <!-- Filtros por Categoría Espacial con Iconografía SVG Editorial -->
       <div class="world-category-pills">
         <button class="world-cat-pill ${this.selectedCategory === 'all' ? 'is-active' : ''}" data-category="all">
-          <span>🌐 Todos los Lugares</span>
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          <span>Todos los Lugares</span>
           <span class="world-cat-count">${categoryCounts.all}</span>
         </button>
         <button class="world-cat-pill ${this.selectedCategory === 'geografia' ? 'is-active' : ''}" data-category="geografia">
-          <span>🗺️ Geografía Mayor</span>
+          ${getPlaceCategoryIcon('geografia', 'icon icon-sm')}
+          <span>Geografía Mayor</span>
           <span class="world-cat-count">${categoryCounts.geografia}</span>
         </button>
         <button class="world-cat-pill ${this.selectedCategory === 'asentamientos' ? 'is-active' : ''}" data-category="asentamientos">
-          <span>🏰 Asentamientos y Edificios</span>
+          ${getPlaceCategoryIcon('asentamientos', 'icon icon-sm')}
+          <span>Asentamientos</span>
           <span class="world-cat-count">${categoryCounts.asentamientos}</span>
         </button>
         <button class="world-cat-pill ${this.selectedCategory === 'naturaleza' ? 'is-active' : ''}" data-category="naturaleza">
-          <span>🌲 Geografía Natural</span>
+          ${getPlaceCategoryIcon('naturaleza', 'icon icon-sm')}
+          <span>Geografía Natural</span>
           <span class="world-cat-count">${categoryCounts.naturaleza}</span>
         </button>
         <button class="world-cat-pill ${this.selectedCategory === 'infraestructura' ? 'is-active' : ''}" data-category="infraestructura">
-          <span>🛤️ Vías e Infraestructura</span>
+          ${getPlaceCategoryIcon('infraestructura', 'icon icon-sm')}
+          <span>Vías e Infraestructura</span>
           <span class="world-cat-count">${categoryCounts.infraestructura}</span>
         </button>
         <button class="world-cat-pill ${this.selectedCategory === 'especiales' ? 'is-active' : ''}" data-category="especiales">
-          <span>✨ Lugares Especiales</span>
+          ${getPlaceCategoryIcon('especiales', 'icon icon-sm')}
+          <span>Lugares Especiales</span>
           <span class="world-cat-count">${categoryCounts.especiales}</span>
         </button>
       </div>
@@ -161,7 +167,7 @@ export class WorldView {
       <!-- Barra de Herramientas -->
       <div class="world-toolbar">
         <div class="world-search-box">
-          <svg class="icon" viewBox="0 0 24 24" style="color: var(--text-muted);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: var(--text-muted);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           <input type="text" id="world-search-input" class="world-search-input" placeholder="Buscar lugar por nombre, tipo, descripción o etiqueta..." value="${escapeHtml(this.searchQuery)}" />
           ${this.searchQuery ? `<button id="btn-clear-search" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">&times;</button>` : ''}
         </div>
@@ -179,13 +185,15 @@ export class WorldView {
       <!-- Cuadrícula de Tarjetas -->
       ${filtered.length === 0 ? `
         <div class="card empty-state" style="text-align: center; padding: var(--space-2xl);">
-          <div style="font-size: 3rem; margin-bottom: var(--space-md);">🗺️</div>
+          <div class="empty-state-icon" style="margin-bottom: var(--space-md); color: var(--text-muted);">
+            <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          </div>
           <h3 style="font-family: var(--font-serif); margin-bottom: 6px;">No se encontraron lugares</h3>
           <p style="color: var(--text-muted); max-width: 440px; margin: 0 auto var(--space-lg) auto; font-size: 0.875rem;">
             ${this.searchQuery ? 'No hay ningún lugar que coincida con los términos de búsqueda.' : 'Comienza construyendo el mapa y los territorios de tu historia.'}
           </p>
           <button class="btn btn-primary" id="btn-empty-new-place">
-            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             <span>Crear primer lugar</span>
           </button>
         </div>
@@ -202,22 +210,23 @@ export class WorldView {
     const breadcrumbs = store.getPlaceBreadcrumbs(place.id, project.id);
     const parentPath = breadcrumbs.slice(0, -1).map(p => p.name).join(' > ');
     const typeLabel = this.formatTypeLabel(place.category, place.type);
+    const children = store.getPlaces(project.id).filter(p => p.parentId === place.id);
 
-    // Autoridades
+    // Autoridades asignadas
     const authorities = (place.authorities || []).map(a => {
       const char = store.getCharacter(a.characterId, project.id);
       return char ? `${char.name}${a.title ? ` (${a.title})` : ''}` : null;
     }).filter(Boolean);
 
     return `
-      <div class="place-card" data-place-id="${escapeHtml(place.id)}">
+      <div class="card card-clickable place-card" data-place-id="${escapeHtml(place.id)}" style="display: flex; flex-direction: column; justify-content: space-between;">
         <div class="place-card-accent-bar" style="background-color: ${escapeHtml(place.color || catMeta.color)};"></div>
         
         <div>
           <div class="place-card-top">
             <div class="place-card-identity">
               <div class="place-avatar-icon" style="background-color: ${escapeHtml(place.color || catMeta.color)}20; color: ${escapeHtml(place.color || catMeta.color)};">
-                ${escapeHtml(place.mapData?.icon || catMeta.icon)}
+                ${getPlaceCategoryIcon(place.category, 'icon icon-sm')}
               </div>
               <div class="place-card-title-group">
                 <div class="place-card-name">${escapeHtml(place.name)}</div>
@@ -232,7 +241,7 @@ export class WorldView {
           ${parentPath ? `
             <div style="margin-top: 10px;">
               <span class="place-card-breadcrumb" title="${escapeHtml(parentPath)}">
-                <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg class="icon icon-xs" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 ${escapeHtml(parentPath)}
               </span>
             </div>
@@ -246,7 +255,7 @@ export class WorldView {
         <div class="place-card-meta">
           ${authorities.length > 0 ? `
             <div class="place-card-authorities" title="Autoridades: ${escapeHtml(authorities.join(', '))}">
-              <svg class="icon" viewBox="0 0 24 24" style="width: 13px; height: 13px; color: var(--accent); flex-shrink: 0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+              <svg class="icon icon-xs" viewBox="0 0 24 24" style="width: 13px; height: 13px; color: var(--accent); flex-shrink: 0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
               <span><strong>Autoridad:</strong> ${escapeHtml(authorities.slice(0, 2).join(', '))}${authorities.length > 2 ? ` (+${authorities.length - 2})` : ''}</span>
             </div>
           ` : ''}
@@ -257,17 +266,15 @@ export class WorldView {
             </div>
           ` : ''}
 
-          <div class="place-card-actions">
-            <button class="btn btn-secondary btn-sm btn-view-place" data-place-id="${escapeHtml(place.id)}" title="Ver Ficha Completa">
-              <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              <span>Ficha</span>
-            </button>
-            <div style="display: flex; gap: 4px;">
-              <button class="btn btn-ghost btn-sm btn-edit-place" data-place-id="${escapeHtml(place.id)}" title="Editar lugar">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-              </button>
-              <button class="btn btn-ghost btn-sm btn-delete-place" data-place-id="${escapeHtml(place.id)}" title="Eliminar lugar" style="color: var(--danger);">
-                <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          <!-- Acciones de Tarjeta coherentes con Personajes -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: var(--space-xs); border-top: 1px solid var(--border-subtle); font-size: 0.75rem; color: var(--text-muted); margin-top: var(--space-xs);">
+            <span>
+              ${children.length > 0 ? `${children.length} sub-lugares` : ''}
+            </span>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <button class="btn btn-subtle btn-sm btn-view-place" data-place-id="${escapeHtml(place.id)}">Ficha</button>
+              <button class="btn btn-subtle btn-icon btn-sm btn-delete-place" data-place-id="${escapeHtml(place.id)}" title="Eliminar lugar">
+                <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
           </div>
@@ -286,11 +293,11 @@ export class WorldView {
       <div class="world-tree-container">
         <div class="world-tree-actions">
           <button class="btn btn-secondary btn-sm" id="btn-tree-expand-all">
-            <svg class="icon" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
             <span>Expandir todo</span>
           </button>
           <button class="btn btn-secondary btn-sm" id="btn-tree-collapse-all">
-            <svg class="icon" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"></polyline></svg>
             <span>Colapsar todo</span>
           </button>
           <span style="font-size: 0.8125rem; color: var(--text-muted); margin-left: auto;">
@@ -323,15 +330,15 @@ export class WorldView {
           <div class="tree-node-left">
             ${hasChildren ? `
               <button class="tree-toggle-btn ${isCollapsed ? 'is-collapsed' : ''}" data-toggle-id="${escapeHtml(node.id)}" title="${isCollapsed ? 'Expandir' : 'Colapsar'}">
-                <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <svg class="icon icon-xs" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
             ` : `<span style="width: 20px;"></span>`}
 
             <div class="tree-node-icon" style="background-color: ${escapeHtml(node.color || catMeta.color)}25; color: ${escapeHtml(node.color || catMeta.color)};">
-              ${escapeHtml(node.mapData?.icon || catMeta.icon)}
+              ${getPlaceCategoryIcon(node.category, 'icon icon-xs')}
             </div>
 
-            <span class="tree-node-name btn-view-place" data-place-id="${escapeHtml(node.id)}" title="Clic para ver ficha">${escapeHtml(node.name)}</span>
+            <span class="tree-node-name btn-view-place" data-place-id="${escapeHtml(node.id)}" title="Clic para ver ficha" style="cursor:pointer;">${escapeHtml(node.name)}</span>
             <span class="place-badge place-cat-${escapeHtml(node.category)}" style="font-size: 0.625rem;">${escapeHtml(typeLabel)}</span>
           </div>
 
@@ -340,10 +347,10 @@ export class WorldView {
               <span class="tree-node-child-count">${node.children.length} sub-lugares</span>
             ` : ''}
             <button class="btn btn-ghost btn-sm btn-add-child-place" data-parent-id="${escapeHtml(node.id)}" title="Añadir lugar contenido dentro de ${escapeHtml(node.name)}">
-              <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <svg class="icon icon-xs" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </button>
-            <button class="btn btn-ghost btn-sm btn-edit-place" data-place-id="${escapeHtml(node.id)}" title="Editar">
-              <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <button class="btn btn-ghost btn-sm btn-edit-place" data-place-id="${escapeHtml(node.id)}" title="Editar lugar">
+              <svg class="icon icon-xs" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
             </button>
           </div>
         </div>
@@ -358,23 +365,24 @@ export class WorldView {
   }
 
   /* ==========================================================================
-     MODO 3: RED CONCEPTUAL DE LUGARES (CANVAS 2D)
+     MODO 3: RED CONCEPTUAL DE CONEXIONES (CANVAS 2D)
      ========================================================================== */
   renderNetworkView(project) {
     return `
       <div class="world-network-wrapper">
         <div class="world-network-overlay">
           <span style="font-size: 0.8125rem; font-weight: 600; display: flex; align-items: center; gap: 6px;">
-            <svg class="icon" viewBox="0 0 24 24" style="color: var(--accent);"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            <svg class="icon icon-sm" viewBox="0 0 24 24" style="color: var(--accent);"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
             Red de Conexiones Espaciales
           </span>
-          <select id="canvas-category-filter" class="form-input" style="padding: 2px 8px; font-size: 0.75rem;">
-            <option value="all">Todas las categorías</option>
+          <select id="canvas-category-filter" class="form-input" style="padding: 2px 8px; font-size: 0.75rem; width: auto;">
+            <option value="all">Todas las conexiones</option>
             <option value="geografia">Geografía Mayor</option>
             <option value="asentamientos">Asentamientos</option>
             <option value="naturaleza">Naturaleza</option>
             <option value="infraestructura">Infraestructuras</option>
-            <option value="especiales">Especiales</option>
+            <option value="especiales">Lugares Especiales</option>
+            <option value="entidades">Personajes y Casas vinculadas</option>
           </select>
         </div>
 
@@ -393,8 +401,8 @@ export class WorldView {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const wrapper = canvas.parentElement;
-    const width = wrapper.clientWidth;
-    const height = wrapper.clientHeight;
+    const width = wrapper.clientWidth || 800;
+    const height = wrapper.clientHeight || 650;
 
     canvas.width = width * window.devicePixelRatio;
     canvas.height = height * window.devicePixelRatio;
@@ -402,59 +410,135 @@ export class WorldView {
 
     const places = store.getPlaces(project.id);
     const relationships = store.getRelationships(project.id);
+    const placeIdSet = new Set(places.map(p => p.id));
 
-    // Preparar Nodos
+    // Identificar personajes y grupos vinculados con lugares (vía relaciones o autoridades)
+    const connectedCharIds = new Set();
+    const connectedGroupIds = new Set();
+
+    places.forEach(p => {
+      (p.authorities || []).forEach(a => {
+        if (a.characterId) connectedCharIds.add(a.characterId);
+      });
+    });
+
+    relationships.forEach(r => {
+      const isSrcPlace = placeIdSet.has(r.sourceId);
+      const isTgtPlace = placeIdSet.has(r.targetId);
+
+      if (isSrcPlace && !isTgtPlace) {
+        if (r.targetType === 'character' || store.getCharacter(r.targetId, project.id)) connectedCharIds.add(r.targetId);
+        if (r.targetType === 'group' || store.getGroup(r.targetId, project.id)) connectedGroupIds.add(r.targetId);
+      } else if (isTgtPlace && !isSrcPlace) {
+        if (r.sourceType === 'character' || store.getCharacter(r.sourceId, project.id)) connectedCharIds.add(r.sourceId);
+        if (r.sourceType === 'group' || store.getGroup(r.sourceId, project.id)) connectedGroupIds.add(r.sourceId);
+      }
+    });
+
+    // 1. Preparar Nodos Heterogéneos (Lugares + Personajes vinculados + Grupos vinculados)
     this.networkNodes = [];
-    const radius = Math.min(width, height) * 0.38;
     const centerX = width / 2;
     const centerY = height / 2;
+    const placeRadius = Math.min(width, height) * 0.38;
 
+    // Nodos de Lugares (círculo exterior)
     places.forEach((p, idx) => {
       const angle = (idx / (places.length || 1)) * Math.PI * 2;
       const catMeta = PLACE_CATEGORIES[p.category] || PLACE_CATEGORIES.geografia;
       this.networkNodes.push({
         id: p.id,
+        entityType: 'place',
         name: p.name,
         type: p.type,
         category: p.category,
         color: p.color || catMeta.color,
-        icon: p.mapData?.icon || catMeta.icon,
-        radius: 22,
-        x: centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * 30,
-        y: centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * 30,
+        radius: 20,
+        x: centerX + Math.cos(angle) * placeRadius,
+        y: centerY + Math.sin(angle) * placeRadius,
         original: p
       });
     });
 
-    // Preparar Aristas: Jerarquía (padre-hijo) + Relaciones explícitas que involucren lugares
+    // Nodos de Entidades Conectadas (anillo interior concéntrico)
+    const allEntities = [
+      ...Array.from(connectedCharIds).map(id => ({ id, type: 'character', data: store.getCharacter(id, project.id) })).filter(e => e.data),
+      ...Array.from(connectedGroupIds).map(id => ({ id, type: 'group', data: store.getGroup(id, project.id) })).filter(e => e.data)
+    ];
+
+    const entityRadius = Math.min(width, height) * 0.18;
+    allEntities.forEach((ent, idx) => {
+      const angle = (idx / (allEntities.length || 1)) * Math.PI * 2 + 0.3;
+      const isChar = ent.type === 'character';
+      this.networkNodes.push({
+        id: ent.id,
+        entityType: ent.type,
+        name: ent.data.name,
+        type: isChar ? ent.data.role : ent.data.type,
+        category: 'entidades',
+        color: isChar ? (ent.data.avatarColor || '#B45309') : (ent.data.color || '#4F46E5'),
+        radius: 17,
+        x: centerX + Math.cos(angle) * entityRadius,
+        y: centerY + Math.sin(angle) * entityRadius,
+        original: ent.data
+      });
+    });
+
+    // 2. Preparar Aristas: Jerarquía + Relaciones Espaciales + Autoridades
     this.networkEdges = [];
 
-    // 1. Aristas de contención jerárquica
+    // Aristas de jerarquía (padre-hijo entre lugares)
     places.forEach(p => {
-      if (p.parentId && places.some(x => x.id === p.parentId)) {
+      if (p.parentId && placeIdSet.has(p.parentId)) {
         this.networkEdges.push({
           sourceId: p.parentId,
           targetId: p.id,
           label: 'contiene',
           category: 'jerarquia',
-          isHierarchy: true
+          isHierarchy: true,
+          isSymmetric: false
         });
       }
     });
 
-    // 2. Aristas relacionales
+    // Aristas de relaciones generales
     relationships.forEach(r => {
-      const isSrc = places.some(p => p.id === r.sourceId);
-      const isTgt = places.some(p => p.id === r.targetId);
-      if (isSrc && isTgt) {
+      const hasSrc = this.networkNodes.some(n => n.id === r.sourceId);
+      const hasTgt = this.networkNodes.some(n => n.id === r.targetId);
+      if (hasSrc && hasTgt) {
         this.networkEdges.push({
           sourceId: r.sourceId,
           targetId: r.targetId,
           label: r.roleSource || r.type,
           category: r.category,
+          isHierarchy: false,
+          isSymmetric: !!r.isSymmetric,
           relationship: r
         });
       }
+    });
+
+    // Aristas de autoridad asignada (Personaje ➔ Lugar)
+    places.forEach(p => {
+      (p.authorities || []).forEach(auth => {
+        if (auth.characterId && connectedCharIds.has(auth.characterId)) {
+          // Si no existe ya una arista directa explícita entre ellos
+          const exists = this.networkEdges.some(e =>
+            (e.sourceId === auth.characterId && e.targetId === p.id) ||
+            (e.sourceId === p.id && e.targetId === auth.characterId)
+          );
+          if (!exists) {
+            this.networkEdges.push({
+              sourceId: auth.characterId,
+              targetId: p.id,
+              label: auth.title || 'Autoridad',
+              category: 'autoridad',
+              isHierarchy: false,
+              isAuthority: true,
+              isSymmetric: false
+            });
+          }
+        }
+      });
     });
 
     let activeCatFilter = 'all';
@@ -463,16 +547,27 @@ export class WorldView {
       draw();
     });
 
+    // Función de visibilidad de nodos según filtro
+    const isNodeVisible = (node) => {
+      if (activeCatFilter === 'all') return true;
+      if (activeCatFilter === 'entidades') {
+        return node.entityType === 'character' || node.entityType === 'group';
+      }
+      return node.category === activeCatFilter;
+    };
+
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
+      const isDark = store.getTheme() === 'dark';
 
-      // Dibujar Aristas
+      // 1. Dibujar Aristas (Regla de oro: SOLO si AMBOS extremos son visibles)
       this.networkEdges.forEach(edge => {
         const srcNode = this.networkNodes.find(n => n.id === edge.sourceId);
         const tgtNode = this.networkNodes.find(n => n.id === edge.targetId);
         if (!srcNode || !tgtNode) return;
 
-        if (activeCatFilter !== 'all' && srcNode.category !== activeCatFilter && tgtNode.category !== activeCatFilter) {
+        // FILTRADO ESTRICTO DE ARISTAS:
+        if (!isNodeVisible(srcNode) || !isNodeVisible(tgtNode)) {
           return;
         }
 
@@ -484,63 +579,115 @@ export class WorldView {
         ctx.lineTo(tgtNode.x, tgtNode.y);
 
         if (edge.isHierarchy) {
-          ctx.strokeStyle = '#94A3B8';
+          ctx.strokeStyle = isDark ? '#64748B' : '#94A3B8';
           ctx.setLineDash([4, 4]);
+        } else if (edge.isAuthority) {
+          ctx.strokeStyle = isDark ? '#F59E0B' : '#B45309';
+          ctx.setLineDash([2, 3]);
         } else {
           ctx.strokeStyle = '#0D9488';
           ctx.setLineDash([]);
         }
 
-        ctx.lineWidth = isHighlighted ? 3 : 1.5;
-        ctx.globalAlpha = this.selectedNetworkNode ? (isHighlighted ? 1 : 0.2) : 0.6;
+        ctx.lineWidth = isHighlighted ? 2.5 : 1.2;
+        ctx.globalAlpha = this.selectedNetworkNode ? (isHighlighted ? 1 : 0.15) : 0.55;
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
+
+        // Dibujar flecha indicadora si no es simétrica
+        if (!edge.isSymmetric) {
+          const dx = tgtNode.x - srcNode.x;
+          const dy = tgtNode.y - srcNode.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 0) {
+            const arrowDist = tgtNode.radius + 6;
+            const arrowX = tgtNode.x - (dx / dist) * arrowDist;
+            const arrowY = tgtNode.y - (dy / dist) * arrowDist;
+            const angle = Math.atan2(dy, dx);
+            const headLen = isHighlighted ? 8 : 6;
+
+            ctx.beginPath();
+            ctx.moveTo(arrowX, arrowY);
+            ctx.lineTo(
+              arrowX - headLen * Math.cos(angle - Math.PI / 6),
+              arrowY - headLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+              arrowX - headLen * Math.cos(angle + Math.PI / 6),
+              arrowY - headLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.fill();
+          }
+        }
       });
 
-      // Dibujar Nodos
+      // 2. Dibujar Nodos
       this.networkNodes.forEach(node => {
-        if (activeCatFilter !== 'all' && node.category !== activeCatFilter) return;
+        if (!isNodeVisible(node)) return;
 
         const isSelected = this.selectedNetworkNode && this.selectedNetworkNode.id === node.id;
+        const r = node.radius;
 
-        // Círculo base
+        // Dibujo de Geometría según Tipo de Entidad (Sin emojis, diseño editorial puro)
         ctx.beginPath();
-        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        if (node.entityType === 'group') {
+          // Rectángulo redondeado para Casas / Organizaciones
+          if (ctx.roundRect) {
+            ctx.roundRect(node.x - r, node.y - r, r * 2, r * 2, 5);
+          } else {
+            ctx.rect(node.x - r, node.y - r, r * 2, r * 2);
+          }
+        } else {
+          // Círculo para Lugares y Personajes
+          ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+        }
         ctx.fillStyle = node.color;
         ctx.fill();
 
+        // Borde exterior
         if (isSelected) {
-          ctx.strokeStyle = '#FFFFFF';
+          ctx.strokeStyle = isDark ? '#FFFFFF' : '#111215';
           ctx.lineWidth = 3;
+          ctx.stroke();
+        } else if (node.entityType === 'place') {
+          // Anillo territorial sutil para lugares
+          ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.15)';
+          ctx.lineWidth = 1.5;
           ctx.stroke();
         }
 
-        // Icono / Emoji en el centro
-        ctx.font = '14px sans-serif';
+        // Inicial en el centro del nodo (tipografía limpia)
+        ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(node.icon, node.x, node.y);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(node.name.charAt(0).toUpperCase(), node.x, node.y);
 
-        // Nombre debajo del nodo
+        // Nombre de la entidad debajo del nodo (colores compatibles con modo oscuro)
         ctx.font = isSelected ? 'bold 12px serif' : '11px sans-serif';
-        ctx.fillStyle = isSelected ? 'var(--accent)' : 'var(--text-primary)';
-        ctx.fillText(node.name, node.x, node.y + node.radius + 14);
+        ctx.fillStyle = isSelected
+          ? (isDark ? '#F59E0B' : '#B45309')
+          : (isDark ? '#EDEBE6' : '#23211F');
+        ctx.fillText(node.name, node.x, node.y + r + 14);
       });
     };
 
     draw();
 
-    // Eventos de interacción Canvas: Clic y Arrastre
+    // Eventos de interacción Canvas: Selección y Arrastre fluido
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
       const hit = this.networkNodes.find(n => {
+        if (!isNodeVisible(n)) return false;
         const dx = n.x - mouseX;
         const dy = n.y - mouseY;
-        return Math.sqrt(dx * dx + dy * dy) <= n.radius;
+        return Math.sqrt(dx * dx + dy * dy) <= (n.radius + 4);
       });
 
       if (hit) {
@@ -548,7 +695,7 @@ export class WorldView {
         this.isDragging = true;
         this.draggedNode = hit;
         this.dragOffset = { x: hit.x - mouseX, y: hit.y - mouseY };
-        this.updateInspectorPanel(hit.original, project);
+        this.updateInspectorPanel(hit, project);
       } else {
         this.selectedNetworkNode = null;
         document.getElementById('world-inspector-panel')?.classList.add('is-hidden');
@@ -565,60 +712,178 @@ export class WorldView {
       }
     });
 
-    window.addEventListener('mouseup', () => {
+    const stopDragging = () => {
       this.isDragging = false;
       this.draggedNode = null;
-    });
+    };
+    window.addEventListener('mouseup', stopDragging);
+    canvas.addEventListener('mouseleave', stopDragging);
   }
 
-  updateInspectorPanel(place, project) {
+  updateInspectorPanel(node, project) {
     const panel = document.getElementById('world-inspector-panel');
     if (!panel) return;
 
-    const catMeta = PLACE_CATEGORIES[place.category] || PLACE_CATEGORIES.geografia;
-    const typeLabel = this.formatTypeLabel(place.category, place.type);
-    const rels = store.getPlaceRelationships(place.id, project.id);
+    if (node.entityType === 'character') {
+      const char = node.original;
+      const rels = store.getCharacterRelationships(char.id, project.id);
+      const placesConnected = rels.filter(r => r.otherEntity.type === 'place');
 
-    panel.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-        <div>
-          <span class="place-badge place-cat-${escapeHtml(place.category)}" style="font-size: 0.625rem;">${escapeHtml(typeLabel)}</span>
-          <h3 style="font-family: var(--font-serif); margin-top: 4px; font-size: 1.15rem;">${escapeHtml(place.name)}</h3>
-        </div>
-        <button id="btn-close-inspector" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size: 1.25rem;">&times;</button>
-      </div>
-
-      <p style="font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.4; margin: 8px 0;">
-        ${escapeHtml(place.description || 'Sin descripción registrada.')}
-      </p>
-
-      <div style="font-size: 0.75rem; border-top: 1px solid var(--border-subtle); padding-top: 8px; margin-top: 4px;">
-        <strong>Conexiones activas (${rels.length}):</strong>
-        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
-          ${rels.length === 0 ? `<span style="color: var(--text-muted); font-style: italic;">Sin relaciones registradas</span>` : rels.map(r => `
-            <div style="padding: 4px 6px; background: var(--bg-subtle); border-radius: var(--radius-sm);">
-              ${escapeHtml(r.myRole)} ➔ <strong>${escapeHtml(r.otherEntity.name)}</strong>
+      panel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: ${escapeHtml(char.avatarColor || '#B45309')}; color: #FFF; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+              ${escapeHtml(char.name.charAt(0))}
             </div>
-          `).join('')}
+            <div>
+              <span class="badge" style="font-size: 0.625rem;">Personaje</span>
+              <h3 style="font-family: var(--font-serif); margin: 2px 0 0 0; font-size: 1.15rem;">${escapeHtml(char.name)}</h3>
+            </div>
+          </div>
+          <button id="btn-close-inspector" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size: 1.25rem;">&times;</button>
         </div>
-      </div>
 
-      <div style="margin-top: auto; padding-top: 12px; display: flex; gap: 6px;">
-        <button class="btn btn-primary btn-sm btn-view-place" data-place-id="${escapeHtml(place.id)}" style="flex: 1;">
-          <span>Abrir Ficha</span>
-        </button>
-      </div>
-    `;
+        <p style="font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.4; margin: 8px 0;">
+          ${escapeHtml(char.description || 'Sin descripción.')}
+        </p>
+
+        <div style="font-size: 0.75rem; border-top: 1px solid var(--border-subtle); padding-top: 8px;">
+          <strong>Lugares conectados (${placesConnected.length}):</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+            ${placesConnected.length === 0 ? `<span style="color: var(--text-muted); font-style: italic;">Sin lugares asociados</span>` : placesConnected.map(r => `
+              <div style="padding: 4px 6px; background: var(--bg-subtle); border-radius: var(--radius-sm); display: flex; justify-content: space-between;">
+                <span>${escapeHtml(r.myRole)} ➔ <strong>${escapeHtml(r.otherEntity.name)}</strong></span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="margin-top: auto; padding-top: 12px; display: flex; gap: 6px;">
+          <button class="btn btn-primary btn-sm btn-inspect-char" style="flex: 1;">
+            Ver Ficha de Personaje
+          </button>
+        </div>
+      `;
+
+      panel.querySelector('.btn-inspect-char')?.addEventListener('click', () => {
+        panel.classList.add('is-hidden');
+        this.app.navigate('characters', project.id, { characterId: char.id });
+      });
+
+    } else if (node.entityType === 'group') {
+      const group = node.original;
+      const rels = store.getGroupRelationships(group.id, project.id);
+      const placesConnected = rels.filter(r => r.otherEntity.type === 'place');
+
+      panel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 32px; height: 32px; border-radius: var(--radius-sm); background: ${escapeHtml(group.color || '#4F46E5')}; color: #FFF; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+              ${escapeHtml(group.name.charAt(0))}
+            </div>
+            <div>
+              <span class="badge" style="font-size: 0.625rem;">${escapeHtml(group.type)}</span>
+              <h3 style="font-family: var(--font-serif); margin: 2px 0 0 0; font-size: 1.15rem;">${escapeHtml(group.name)}</h3>
+            </div>
+          </div>
+          <button id="btn-close-inspector" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size: 1.25rem;">&times;</button>
+        </div>
+
+        ${group.motto ? `<div style="font-style: italic; font-size: 0.8125rem; color: var(--text-muted); margin: 6px 0;">"${escapeHtml(group.motto)}"</div>` : ''}
+
+        <div style="font-size: 0.75rem; border-top: 1px solid var(--border-subtle); padding-top: 8px; margin-top: 6px;">
+          <strong>Sedes y Lugares vinculados (${placesConnected.length}):</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+            ${placesConnected.length === 0 ? `<span style="color: var(--text-muted); font-style: italic;">Sin lugares asociados</span>` : placesConnected.map(r => `
+              <div style="padding: 4px 6px; background: var(--bg-subtle); border-radius: var(--radius-sm);">
+                ${escapeHtml(r.myRole)} ➔ <strong>${escapeHtml(r.otherEntity.name)}</strong>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="margin-top: auto; padding-top: 12px; display: flex; gap: 6px;">
+          <button class="btn btn-primary btn-sm btn-inspect-group" style="flex: 1;">
+            Ver Casa / Organización
+          </button>
+        </div>
+      `;
+
+      panel.querySelector('.btn-inspect-group')?.addEventListener('click', () => {
+        panel.classList.add('is-hidden');
+        this.app.navigate('relationships', project.id);
+      });
+
+    } else {
+      // Lugar
+      const place = node.original;
+      const catMeta = PLACE_CATEGORIES[place.category] || PLACE_CATEGORIES.geografia;
+      const typeLabel = this.formatTypeLabel(place.category, place.type);
+      const rels = store.getPlaceRelationships(place.id, project.id);
+      const breadcrumbs = store.getPlaceBreadcrumbs(place.id, project.id);
+      const parentPath = breadcrumbs.slice(0, -1).map(p => p.name).join(' > ');
+      const children = store.getPlaces(project.id).filter(p => p.parentId === place.id);
+
+      panel.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">
+              <span class="place-badge place-cat-${escapeHtml(place.category)}" style="font-size: 0.625rem;">${escapeHtml(typeLabel)}</span>
+              <span class="place-status-badge status-${escapeHtml(place.status)}">${escapeHtml(this.formatStatus(place.status))}</span>
+            </div>
+            <h3 style="font-family: var(--font-serif); margin: 0; font-size: 1.15rem;">${escapeHtml(place.name)}</h3>
+            ${parentPath ? `<div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">En: ${escapeHtml(parentPath)}</div>` : ''}
+          </div>
+          <button id="btn-close-inspector" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size: 1.25rem;">&times;</button>
+        </div>
+
+        <p style="font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.4; margin: 8px 0;">
+          ${escapeHtml(place.description || 'Sin descripción registrada.')}
+        </p>
+
+        ${(place.authorities || []).length > 0 ? `
+          <div style="font-size: 0.75rem; border-top: 1px solid var(--border-subtle); padding-top: 6px;">
+            <strong>Autoridades:</strong>
+            <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 4px;">
+              ${place.authorities.map(a => {
+                const c = store.getCharacter(a.characterId, project.id);
+                return c ? `<div>• <strong>${escapeHtml(c.name)}</strong> (${escapeHtml(a.title || 'Autoridad')})</div>` : '';
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="font-size: 0.75rem; border-top: 1px solid var(--border-subtle); padding-top: 8px; margin-top: 4px;">
+          <strong>Conexiones activas (${rels.length}):</strong>
+          <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 160px; overflow-y: auto;">
+            ${rels.length === 0 ? `<span style="color: var(--text-muted); font-style: italic;">Sin relaciones directas</span>` : rels.map(r => `
+              <div style="padding: 4px 6px; background: var(--bg-subtle); border-radius: var(--radius-sm);">
+                ${escapeHtml(r.myRole)} ➔ <strong>${escapeHtml(r.otherEntity.name)}</strong>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="margin-top: auto; padding-top: 12px; display: flex; gap: 6px;">
+          <button class="btn btn-secondary btn-sm btn-edit-inspector-place" style="flex: 1;">Editar</button>
+          <button class="btn btn-primary btn-sm btn-view-inspector-place" style="flex: 2;">Abrir Ficha</button>
+        </div>
+      `;
+
+      panel.querySelector('.btn-view-inspector-place')?.addEventListener('click', () => {
+        this.openPlaceDetailModal(place, project.id);
+      });
+
+      panel.querySelector('.btn-edit-inspector-place')?.addEventListener('click', () => {
+        this.openPlaceModal(place, project.id);
+      });
+    }
 
     panel.classList.remove('is-hidden');
 
     panel.querySelector('#btn-close-inspector')?.addEventListener('click', () => {
       panel.classList.add('is-hidden');
       this.selectedNetworkNode = null;
-    });
-
-    panel.querySelector('.btn-view-place')?.addEventListener('click', () => {
-      this.openPlaceDetailModal(place, project.id);
     });
   }
 
@@ -750,7 +1015,7 @@ export class WorldView {
 
         modal.confirm({
           title: `¿Eliminar "${place.name}"?`,
-          message: 'Se eliminará este lugar y sus relaciones asociadas. Los lugares contenidos pasarán a nivel raíz de forma segura.',
+          message: 'Se eliminará este lugar y sus relaciones asociadas. Los lugares contenidos pasarán a nivel raíz de forma segura sin borrarse.',
           confirmText: 'Eliminar Lugar',
           isDanger: true,
           onConfirm: () => {
@@ -772,7 +1037,7 @@ export class WorldView {
     const currentType = place?.type || initialValues.type || 'territorio';
     const currentParentId = place?.parentId !== undefined ? place.parentId : (initialValues.parentId || null);
 
-    // Obtener lugares elegibles para padre: excluir al lugar actual y a todos sus descendientes para evitar ciclos
+    // Lugares elegibles para padre: excluir al propio lugar y descendientes para prevenir ciclos
     const allPlaces = store.getPlaces(projectId);
     let descendantsSet = new Set();
     if (isEdit) {
@@ -784,9 +1049,10 @@ export class WorldView {
     // Personajes para el selector de autoridades
     const characters = store.getCharacters(projectId);
 
-    // Formulario HTML Reactivo
+    // Formulario reactivo y persistencia en memoria durante cambios de categoría
     let selectedCat = currentCategory;
-    let authoritiesList = place ? [...(place.authorities || [])] : [];
+    let capturedSpecificData = { ...(place?.specificData || {}) };
+    let authoritiesList = place?.authorities ? JSON.parse(JSON.stringify(place.authorities)) : [];
 
     const getTypesOptions = (category, selectedTypeValue) => {
       const types = PLACE_TYPES_BY_CATEGORY[category] || [];
@@ -832,8 +1098,8 @@ export class WorldView {
               <input type="text" id="field-altitude" class="form-input" placeholder="Ej: 3.420 m o 240 km navegables" value="${escapeHtml(data.altitude || data.length || '')}" />
             </div>
             <div class="form-group">
-              <label class="form-label">Peligros Naturales / Dificultad</label>
-              <input type="text" id="field-hazards" class="form-input" placeholder="Ej: Vientos gélidos, desorientación o bajíos rocosos" value="${escapeHtml(data.hazards || '')}" />
+              <label class="form-label">Peligros Naturales / Clima</label>
+              <input type="text" id="field-hazards" class="form-input" placeholder="Ej: Vientos gélidos, desorientación o corrientes" value="${escapeHtml(data.hazards || '')}" />
             </div>
           </div>
         `;
@@ -894,16 +1160,16 @@ export class WorldView {
       return authoritiesList.map((auth, idx) => `
         <tr data-auth-idx="${idx}">
           <td>
-            <select class="auth-char-select" style="width:100%;">
+            <select class="form-input auth-char-select" style="width:100%; padding:4px 6px; font-size:0.8125rem;">
               <option value="">-- Seleccionar Personaje --</option>
               ${characters.map(c => `<option value="${escapeHtml(c.id)}" ${c.id === auth.characterId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
             </select>
           </td>
           <td>
-            <input type="text" class="auth-title-input" placeholder="Ej: Alcalde, Rey, Guardián" value="${escapeHtml(auth.title || '')}" />
+            <input type="text" class="form-input auth-title-input" placeholder="Ej: Alcalde, Guardián" value="${escapeHtml(auth.title || '')}" style="width:100%; padding:4px 6px; font-size:0.8125rem;" />
           </td>
           <td>
-            <select class="auth-resp-select">
+            <select class="form-input auth-resp-select" style="width:100%; padding:4px 6px; font-size:0.8125rem;">
               <option value="civil" ${auth.responsibilityType === 'civil' ? 'selected' : ''}>Civil</option>
               <option value="militar" ${auth.responsibilityType === 'militar' ? 'selected' : ''}>Militar</option>
               <option value="religiosa" ${auth.responsibilityType === 'religiosa' ? 'selected' : ''}>Religiosa</option>
@@ -913,7 +1179,9 @@ export class WorldView {
             </select>
           </td>
           <td style="text-align: center;">
-            <button type="button" class="btn btn-ghost btn-sm btn-remove-auth" style="color:var(--danger); padding:2px 6px;">&times;</button>
+            <button type="button" class="btn btn-subtle btn-icon btn-sm btn-remove-auth" title="Quitar autoridad">
+              <svg class="icon icon-xs" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
           </td>
         </tr>
       `).join('');
@@ -943,16 +1211,16 @@ export class WorldView {
           </div>
         </div>
 
-        <!-- Categoría y Tipo específico -->
+        <!-- Categoría y Tipo específico (Sin emojis, diseño editorial limpio) -->
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Categoría Espacial *</label>
             <select id="place-category" class="form-input">
-              <option value="geografia" ${selectedCat === 'geografia' ? 'selected' : ''}>🗺️ Geografía Mayor (Territorial)</option>
-              <option value="asentamientos" ${selectedCat === 'asentamientos' ? 'selected' : ''}>🏰 Asentamientos y Edificios</option>
-              <option value="naturaleza" ${selectedCat === 'naturaleza' ? 'selected' : ''}>🌲 Geografía Física y Natural</option>
-              <option value="infraestructura" ${selectedCat === 'infraestructura' ? 'selected' : ''}>🛤️ Infraestructura y Vías</option>
-              <option value="especiales" ${selectedCat === 'especiales' ? 'selected' : ''}>✨ Lugares Especiales</option>
+              <option value="geografia" ${selectedCat === 'geografia' ? 'selected' : ''}>Geografía Mayor (Territorial)</option>
+              <option value="asentamientos" ${selectedCat === 'asentamientos' ? 'selected' : ''}>Asentamientos y Edificios</option>
+              <option value="naturaleza" ${selectedCat === 'naturaleza' ? 'selected' : ''}>Geografía Física y Natural</option>
+              <option value="infraestructura" ${selectedCat === 'infraestructura' ? 'selected' : ''}>Infraestructura y Vías</option>
+              <option value="especiales" ${selectedCat === 'especiales' ? 'selected' : ''}>Lugares Especiales</option>
             </select>
           </div>
 
@@ -986,7 +1254,7 @@ export class WorldView {
             Propiedades Específicas
           </span>
           <div id="dynamic-contextual-fields">
-            ${getContextualFieldsHtml(selectedCat, place?.specificData || {})}
+            ${getContextualFieldsHtml(selectedCat, capturedSpecificData)}
           </div>
         </div>
 
@@ -1000,13 +1268,13 @@ export class WorldView {
               + Añadir Autoridad
             </button>
           </div>
-          <table class="authorities-table" style="margin-top:6px;">
+          <table class="authorities-table" style="margin-top:6px; width:100%;">
             <thead>
               <tr>
-                <th style="width:35%;">Personaje</th>
-                <th style="width:35%;">Cargo / Título</th>
-                <th style="width:20%;">Tipo</th>
-                <th style="width:10%;"></th>
+                <th style="width:36%;">Personaje</th>
+                <th style="width:34%;">Cargo / Título</th>
+                <th style="width:22%;">Tipo</th>
+                <th style="width:8%;"></th>
               </tr>
             </thead>
             <tbody id="authorities-table-body">
@@ -1053,62 +1321,138 @@ export class WorldView {
       </form>
     `;
 
-    const dialog = modal.open({
+    modal.open({
       title: isEdit ? `Editar Lugar: ${place.name}` : 'Crear Nuevo Lugar',
-      content: contentHtml,
+      contentHtml: contentHtml,
       confirmText: isEdit ? 'Guardar Cambios' : 'Crear Lugar',
-      onConfirm: () => {
-        const form = document.getElementById('form-place-modal');
-        if (!form) return;
+      cancelText: 'Cancelar',
+      onOpen: (modalEl) => {
+        const tableBody = modalEl.querySelector('#authorities-table-body');
 
-        const name = form.querySelector('#place-name')?.value.trim();
+        // Sincronizar filas existentes del DOM para no perder entradas al añadir o quitar
+        const syncAuthoritiesFromDOM = () => {
+          authoritiesList = [];
+          tableBody.querySelectorAll('tr[data-auth-idx]').forEach(row => {
+            authoritiesList.push({
+              characterId: row.querySelector('.auth-char-select')?.value || '',
+              title: row.querySelector('.auth-title-input')?.value.trim() || '',
+              responsibilityType: row.querySelector('.auth-resp-select')?.value || 'civil'
+            });
+          });
+        };
+
+        const bindAuthRowEvents = () => {
+          tableBody.querySelectorAll('.btn-remove-auth').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              syncAuthoritiesFromDOM();
+              const row = e.target.closest('tr');
+              const idx = Number(row.getAttribute('data-auth-idx'));
+              authoritiesList.splice(idx, 1);
+              tableBody.innerHTML = renderAuthoritiesRows();
+              bindAuthRowEvents();
+            });
+          });
+        };
+
+        modalEl.querySelector('#btn-add-auth-row')?.addEventListener('click', () => {
+          syncAuthoritiesFromDOM();
+          authoritiesList.push({ characterId: '', title: '', responsibilityType: 'civil' });
+          tableBody.innerHTML = renderAuthoritiesRows();
+          bindAuthRowEvents();
+        });
+
+        bindAuthRowEvents();
+
+        // Sincronizar campos específicos al cambiar de categoría
+        const captureCurrentSpecificFields = () => {
+          const cat = modalEl.querySelector('#place-category')?.value;
+          if (cat === 'geografia') {
+            capturedSpecificData.capital = modalEl.querySelector('#field-capital')?.value.trim() || '';
+            capturedSpecificData.population = modalEl.querySelector('#field-population')?.value.trim() || '';
+            capturedSpecificData.governmentSystem = modalEl.querySelector('#field-governmentSystem')?.value.trim() || '';
+          } else if (cat === 'asentamientos') {
+            capturedSpecificData.population = modalEl.querySelector('#field-population')?.value.trim() || '';
+            capturedSpecificData.function = modalEl.querySelector('#field-function')?.value.trim() || '';
+          } else if (cat === 'naturaleza') {
+            capturedSpecificData.altitude = modalEl.querySelector('#field-altitude')?.value.trim() || '';
+            capturedSpecificData.hazards = modalEl.querySelector('#field-hazards')?.value.trim() || '';
+          } else if (cat === 'infraestructura') {
+            capturedSpecificData.originPlaceId = modalEl.querySelector('#field-originPlaceId')?.value || null;
+            capturedSpecificData.destinationPlaceId = modalEl.querySelector('#field-destinationPlaceId')?.value || null;
+            capturedSpecificData.distance = modalEl.querySelector('#field-distance')?.value.trim() || '';
+            capturedSpecificData.controlGroupOrEntity = modalEl.querySelector('#field-controlGroupOrEntity')?.value.trim() || '';
+          } else if (cat === 'especiales') {
+            capturedSpecificData.dangerLevel = modalEl.querySelector('#field-dangerLevel')?.value.trim() || '';
+            capturedSpecificData.accessRequirements = modalEl.querySelector('#field-accessRequirements')?.value.trim() || '';
+            capturedSpecificData.supernaturalEffects = modalEl.querySelector('#field-supernaturalEffects')?.value.trim() || '';
+          }
+        };
+
+        const catSelect = modalEl.querySelector('#place-category');
+        catSelect?.addEventListener('change', (e) => {
+          captureCurrentSpecificFields();
+          const newCat = e.target.value;
+          selectedCat = newCat;
+
+          const typeSelect = modalEl.querySelector('#place-type');
+          if (typeSelect) {
+            typeSelect.innerHTML = getTypesOptions(newCat, '');
+          }
+          const dynContainer = modalEl.querySelector('#dynamic-contextual-fields');
+          if (dynContainer) {
+            dynContainer.innerHTML = getContextualFieldsHtml(newCat, capturedSpecificData);
+          }
+        });
+      },
+      onConfirm: (modalEl) => {
+        const name = modalEl.querySelector('#place-name')?.value.trim();
         if (!name) {
           showToast('El lugar debe tener un nombre', 'warning');
-          return;
+          return false;
         }
 
-        const category = form.querySelector('#place-category')?.value;
-        const type = form.querySelector('#place-type')?.value;
-        const parentId = form.querySelector('#place-parent')?.value || null;
-        const status = form.querySelector('#place-status')?.value;
-        const description = form.querySelector('#place-description')?.value.trim();
-        const history = form.querySelector('#place-history')?.value.trim();
-        const tagsStr = form.querySelector('#place-tags')?.value || '';
+        const category = modalEl.querySelector('#place-category')?.value;
+        const type = modalEl.querySelector('#place-type')?.value;
+        const parentId = modalEl.querySelector('#place-parent')?.value || null;
+        const status = modalEl.querySelector('#place-status')?.value;
+        const description = modalEl.querySelector('#place-description')?.value.trim();
+        const history = modalEl.querySelector('#place-history')?.value.trim();
+        const tagsStr = modalEl.querySelector('#place-tags')?.value || '';
         const tags = tagsStr.split(',').map(t => t.trim()).filter(Boolean);
-        const notes = form.querySelector('#place-notes')?.value.trim();
+        const notes = modalEl.querySelector('#place-notes')?.value.trim();
 
         // Extraer fechas históricas
         const historicalDates = {
-          foundationDate: form.querySelector('#field-foundationDate')?.value.trim() || '',
-          period: form.querySelector('#field-period')?.value.trim() || ''
+          foundationDate: modalEl.querySelector('#field-foundationDate')?.value.trim() || '',
+          period: modalEl.querySelector('#field-period')?.value.trim() || ''
         };
 
-        // Extraer campos específicos según categoría
+        // Extraer campos contextuales según categoría
         const specificData = {};
         if (category === 'geografia') {
-          specificData.capital = form.querySelector('#field-capital')?.value.trim() || '';
-          specificData.population = form.querySelector('#field-population')?.value.trim() || '';
-          specificData.governmentSystem = form.querySelector('#field-governmentSystem')?.value.trim() || '';
+          specificData.capital = modalEl.querySelector('#field-capital')?.value.trim() || '';
+          specificData.population = modalEl.querySelector('#field-population')?.value.trim() || '';
+          specificData.governmentSystem = modalEl.querySelector('#field-governmentSystem')?.value.trim() || '';
         } else if (category === 'asentamientos') {
-          specificData.population = form.querySelector('#field-population')?.value.trim() || '';
-          specificData.function = form.querySelector('#field-function')?.value.trim() || '';
+          specificData.population = modalEl.querySelector('#field-population')?.value.trim() || '';
+          specificData.function = modalEl.querySelector('#field-function')?.value.trim() || '';
         } else if (category === 'naturaleza') {
-          specificData.altitude = form.querySelector('#field-altitude')?.value.trim() || '';
-          specificData.hazards = form.querySelector('#field-hazards')?.value.trim() || '';
+          specificData.altitude = modalEl.querySelector('#field-altitude')?.value.trim() || '';
+          specificData.hazards = modalEl.querySelector('#field-hazards')?.value.trim() || '';
         } else if (category === 'infraestructura') {
-          specificData.originPlaceId = form.querySelector('#field-originPlaceId')?.value || null;
-          specificData.destinationPlaceId = form.querySelector('#field-destinationPlaceId')?.value || null;
-          specificData.distance = form.querySelector('#field-distance')?.value.trim() || '';
-          specificData.controlGroupOrEntity = form.querySelector('#field-controlGroupOrEntity')?.value.trim() || '';
+          specificData.originPlaceId = modalEl.querySelector('#field-originPlaceId')?.value || null;
+          specificData.destinationPlaceId = modalEl.querySelector('#field-destinationPlaceId')?.value || null;
+          specificData.distance = modalEl.querySelector('#field-distance')?.value.trim() || '';
+          specificData.controlGroupOrEntity = modalEl.querySelector('#field-controlGroupOrEntity')?.value.trim() || '';
         } else if (category === 'especiales') {
-          specificData.dangerLevel = form.querySelector('#field-dangerLevel')?.value.trim() || '';
-          specificData.accessRequirements = form.querySelector('#field-accessRequirements')?.value.trim() || '';
-          specificData.supernaturalEffects = form.querySelector('#field-supernaturalEffects')?.value.trim() || '';
+          specificData.dangerLevel = modalEl.querySelector('#field-dangerLevel')?.value.trim() || '';
+          specificData.accessRequirements = modalEl.querySelector('#field-accessRequirements')?.value.trim() || '';
+          specificData.supernaturalEffects = modalEl.querySelector('#field-supernaturalEffects')?.value.trim() || '';
         }
 
-        // Extraer autoridades
+        // Extraer autoridades sincronizadas desde el DOM
         const authorities = [];
-        form.querySelectorAll('#authorities-table-body tr').forEach(row => {
+        modalEl.querySelectorAll('#authorities-table-body tr').forEach(row => {
           const charId = row.querySelector('.auth-char-select')?.value;
           const title = row.querySelector('.auth-title-input')?.value.trim();
           const resp = row.querySelector('.auth-resp-select')?.value;
@@ -1141,61 +1485,28 @@ export class WorldView {
           if (updated) {
             showToast(`Lugar "${updated.name}" actualizado`, 'success');
             this.render(document.getElementById('app-main'));
-            modal.close(dialog);
+            return true;
           } else {
-            showToast('No se pudo actualizar el lugar (comprueba bucles jerárquicos)', 'error');
+            showToast('No se pudo actualizar el lugar (comprueba bucles o compatibilidad)', 'error');
+            return false;
           }
         } else {
           const created = store.createPlace(params);
           if (created) {
             showToast(`Lugar "${created.name}" creado`, 'success');
             this.render(document.getElementById('app-main'));
-            modal.close(dialog);
+            return true;
           } else {
             showToast('No se pudo crear el lugar', 'error');
+            return false;
           }
         }
       }
     });
-
-    // Reaccionar dinámicamente al cambio de categoría en el modal
-    const catSelect = document.getElementById('place-category');
-    catSelect?.addEventListener('change', (e) => {
-      const newCat = e.target.value;
-      const typeSelect = document.getElementById('place-type');
-      if (typeSelect) {
-        typeSelect.innerHTML = getTypesOptions(newCat, '');
-      }
-      const dynContainer = document.getElementById('dynamic-contextual-fields');
-      if (dynContainer) {
-        dynContainer.innerHTML = getContextualFieldsHtml(newCat, {});
-      }
-    });
-
-    // Manejar filas de autoridades
-    const tableBody = document.getElementById('authorities-table-body');
-    document.getElementById('btn-add-auth-row')?.addEventListener('click', () => {
-      authoritiesList.push({ characterId: '', title: '', responsibilityType: 'civil' });
-      if (tableBody) tableBody.innerHTML = renderAuthoritiesRows();
-      bindAuthRowEvents();
-    });
-
-    const bindAuthRowEvents = () => {
-      tableBody?.querySelectorAll('.btn-remove-auth').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const row = e.target.closest('tr');
-          const idx = Number(row.getAttribute('data-auth-idx'));
-          authoritiesList.splice(idx, 1);
-          if (tableBody) tableBody.innerHTML = renderAuthoritiesRows();
-          bindAuthRowEvents();
-        });
-      });
-    };
-    bindAuthRowEvents();
   }
 
   /* ==========================================================================
-     FICHA COMPLETA DEL LUGAR (MODAL DE INSPECCIÓN DETALLADO)
+     MODAL DE FICHA DETALLADA DE LUGAR
      ========================================================================== */
   openPlaceDetailModal(place, projectId) {
     const catMeta = PLACE_CATEGORIES[place.category] || PLACE_CATEGORIES.geografia;
@@ -1212,7 +1523,7 @@ export class WorldView {
         <!-- Tarjeta de Identidad -->
         <div class="place-detail-header-card">
           <div class="place-detail-icon-box" style="background-color: ${escapeHtml(place.color || catMeta.color)}20; color: ${escapeHtml(place.color || catMeta.color)};">
-            ${escapeHtml(place.mapData?.icon || catMeta.icon)}
+            ${getPlaceCategoryIcon(place.category, 'icon icon-lg')}
           </div>
           <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -1255,7 +1566,7 @@ export class WorldView {
                 <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
                   ${children.map(ch => `
                     <button class="btn btn-secondary btn-sm btn-jump-to-place" data-place-id="${escapeHtml(ch.id)}" style="padding:3px 8px; font-size:0.75rem;">
-                      ${escapeHtml(ch.mapData?.icon || '📍')} ${escapeHtml(ch.name)}
+                      ${escapeHtml(ch.name)}
                     </button>
                   `).join('')}
                 </div>
@@ -1333,7 +1644,7 @@ export class WorldView {
             ${linkedNotes.length === 0 ? `
               <span style="font-size:0.8125rem; color:var(--text-muted); font-style:italic;">No hay notas vinculadas específicamente a este lugar.</span>
             ` : linkedNotes.map(n => `
-              <div class="place-note-item btn-jump-to-notes" data-note-id="${escapeHtml(n.id)}">
+              <div class="place-note-item btn-jump-to-notes" data-note-id="${escapeHtml(n.id)}" style="cursor:pointer;">
                 <div style="font-weight:600; font-size:0.875rem;">${escapeHtml(n.title)}</div>
                 <div style="font-size:0.75rem; color:var(--text-secondary); display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden;">
                   ${escapeHtml(n.content)}
@@ -1366,56 +1677,58 @@ export class WorldView {
       </div>
     `;
 
-    const detailDialog = modal.open({
+    modal.open({
       title: `Ficha del Lugar: ${place.name}`,
-      content: contentHtml,
+      contentHtml: contentHtml,
       confirmText: 'Editar Lugar',
       cancelText: 'Cerrar',
-      onConfirm: () => {
-        modal.close(detailDialog);
-        this.openPlaceModal(place, projectId);
-      }
-    });
-
-    // Eventos dentro de la Ficha
-    const dialogElem = document.querySelector('.modal-card');
-    if (dialogElem) {
-      dialogElem.querySelectorAll('.btn-jump-to-place').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const targetId = btn.getAttribute('data-place-id');
-          const targetPlace = store.getPlace(targetId, projectId);
-          if (targetPlace) {
-            modal.close(detailDialog);
-            this.openPlaceDetailModal(targetPlace, projectId);
-          }
+      onOpen: (modalEl) => {
+        // Enlaces de navegación internos
+        modalEl.querySelectorAll('.btn-jump-to-place').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-place-id');
+            const targetPlace = store.getPlace(targetId, projectId);
+            if (targetPlace) {
+              modal.close();
+              setTimeout(() => this.openPlaceDetailModal(targetPlace, projectId), 100);
+            }
+          });
         });
-      });
 
-      dialogElem.querySelectorAll('.btn-jump-to-char').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const charId = btn.getAttribute('data-char-id');
-          modal.close(detailDialog);
-          this.app.navigate('characters', projectId, { characterId: charId });
+        modalEl.querySelectorAll('.btn-jump-to-char').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const charId = btn.getAttribute('data-char-id');
+            modal.close();
+            this.app.navigate('characters', projectId, { characterId: charId });
+          });
         });
-      });
 
-      dialogElem.querySelectorAll('.btn-jump-to-notes').forEach(btn => {
-        btn.addEventListener('click', () => {
-          modal.close(detailDialog);
+        modalEl.querySelectorAll('.btn-jump-to-notes').forEach(btn => {
+          btn.addEventListener('click', () => {
+            modal.close();
+            this.app.navigate('notes', projectId);
+          });
+        });
+
+        modalEl.querySelector('#btn-add-place-note')?.addEventListener('click', () => {
+          modal.close();
           this.app.navigate('notes', projectId);
         });
-      });
 
-      dialogElem.querySelector('#btn-add-place-note')?.addEventListener('click', () => {
-        modal.close(detailDialog);
-        this.app.navigate('notes', projectId);
-      });
-
-      dialogElem.querySelector('#btn-add-place-rel')?.addEventListener('click', () => {
-        modal.close(detailDialog);
-        this.app.navigate('relationships', projectId);
-      });
-    }
+        modalEl.querySelector('#btn-add-place-rel')?.addEventListener('click', () => {
+          modal.close();
+          this.app.navigate('relationships', projectId);
+          setTimeout(() => {
+            this.app.views.relationships.openRelationshipModal(null, projectId, { sourceId: place.id });
+          }, 150);
+        });
+      },
+      onConfirm: () => {
+        // Cierra la ficha y abre el modal de edición
+        setTimeout(() => this.openPlaceModal(place, projectId), 50);
+        return true;
+      }
+    });
   }
 
   renderDetailSpecificProperties(place, projectId) {
@@ -1433,7 +1746,7 @@ export class WorldView {
     if (s.controlGroupOrEntity) items.push({ label: 'Control / Guarnición', value: s.controlGroupOrEntity });
     if (s.dangerLevel) items.push({ label: 'Nivel de Peligro', value: s.dangerLevel });
     if (s.accessRequirements) items.push({ label: 'Acceso Requerido', value: s.accessRequirements });
-    if (s.supernaturalEffects) items.push({ label: 'Efectos Extraños', value: s.supernaturalEffects });
+    if (s.supernaturalEffects) items.push({ label: 'Efectos Sobrenaturales', value: s.supernaturalEffects });
 
     if (items.length === 0) return '';
 
