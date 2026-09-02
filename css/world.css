@@ -205,14 +205,14 @@
 }
 
 .place-cat-infraestructura {
-  background-color: #FFFBEB;
-  color: #B45309;
-  border: 1px solid #FDE68A;
+  background-color: #ECFEFF;
+  color: #0E7490;
+  border: 1px solid #A5F3FC;
 }
 :root[data-theme="dark"] .place-cat-infraestructura {
-  background-color: #311B0B;
-  color: #FBBF24;
-  border-color: #78350F;
+  background-color: #083344;
+  color: #67E8F9;
+  border-color: #155E75;
 }
 
 .place-cat-especiales {

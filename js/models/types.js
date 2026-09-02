@@ -206,7 +206,7 @@ export const PLACE_CATEGORIES = {
   geografia: { id: 'geografia', label: 'Geografía Mayor', color: '#B45309' },
   asentamientos: { id: 'asentamientos', label: 'Asentamientos y Edificios', color: '#4F46E5' },
   naturaleza: { id: 'naturaleza', label: 'Geografía Física y Natural', color: '#059669' },
-  infraestructura: { id: 'infraestructura', label: 'Infraestructura y Vías', color: '#D97706' },
+  infraestructura: { id: 'infraestructura', label: 'Infraestructura y Vías', color: '#0891B2' },
   especiales: { id: 'especiales', label: 'Lugares Especiales', color: '#7C3AED' }
 };
 
