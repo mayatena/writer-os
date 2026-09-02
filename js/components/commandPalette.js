@@ -227,8 +227,8 @@ class CommandPalette {
         html += `<div class="palette-group-title">Relaciones y Vínculos</div>`;
         results.relationships.forEach(r => {
           const itemIndex = this.items.length;
-          const src = store.getEntity(r.sourceId);
-          const tgt = store.getEntity(r.targetId);
+          const src = store.getEntity(r.sourceId, r.projectId);
+          const tgt = store.getEntity(r.targetId, r.projectId);
           if (!src || !tgt) return;
 
           this.items.push({

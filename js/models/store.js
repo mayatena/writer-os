@@ -6,10 +6,12 @@ import { countWords, createProject, createChapter, createCharacter, createNote, 
 const STORAGE_KEY = 'writer_os_storage_v1';
 const ACTIVE_PROJECT_KEY = 'writer_os_active_project_id';
 const THEME_KEY = 'writer_os_theme';
+const CURRENT_SCHEMA_VERSION = 2;
 
 class Store {
   constructor() {
     this.listeners = new Set();
+    this.schemaVersion = CURRENT_SCHEMA_VERSION;
     this.data = {
       projects: [],
       chapters: [],
@@ -38,6 +40,7 @@ class Store {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        this.schemaVersion = parsed.schemaVersion || 1;
         this.data = {
           projects: parsed.projects || [],
           chapters: parsed.chapters || [],
@@ -47,34 +50,15 @@ class Store {
           relationships: parsed.relationships || []
         };
 
-        // Migración suave: si el proyecto de muestra ya existe pero no tiene grupos/relaciones
-        const sampleProj = this.data.projects.find(p => p.id === 'proj-susurro-sombras');
-        if (sampleProj) {
-          const sampleGroups = this.data.groups.filter(g => g.projectId === 'proj-susurro-sombras');
-          if (sampleGroups.length === 0 && sampleProjectData.groups) {
-            this.data.groups.push(...sampleProjectData.groups);
-          }
-          const sampleRels = this.data.relationships.filter(r => r.projectId === 'proj-susurro-sombras');
-          if (sampleRels.length === 0 && sampleProjectData.relationships) {
-            this.data.relationships.push(...sampleProjectData.relationships);
-          }
-          if (sampleProjectData.characters) {
-            sampleProjectData.characters.forEach(sc => {
-              if (!this.data.characters.some(c => c.id === sc.id)) {
-                this.data.characters.push(sc);
-              }
-            });
-          }
-          if (sampleProjectData.relationships) {
-            sampleProjectData.relationships.forEach(sr => {
-              if (!this.data.relationships.some(r => r.id === sr.id)) {
-                this.data.relationships.push(sr);
-              }
-            });
-          }
+        // Migración de esquema si proviene de versión previa
+        if (this.schemaVersion < CURRENT_SCHEMA_VERSION) {
+          if (!this.data.groups) this.data.groups = [];
+          if (!this.data.relationships) this.data.relationships = [];
+          this.schemaVersion = CURRENT_SCHEMA_VERSION;
+          this.save();
         }
       } else {
-        // Inicializar con datos de muestra la primera vez
+        // Inicializar con datos de muestra solo en instalación limpia
         this.loadSampleData();
       }
     } catch (err) {
@@ -105,7 +89,11 @@ class Store {
 
   save() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      const payload = {
+        schemaVersion: this.schemaVersion || CURRENT_SCHEMA_VERSION,
+        ...this.data
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch (err) {
       console.error('Error al persistir en localStorage:', err);
     }
@@ -307,8 +295,8 @@ class Store {
       .sort((a, b) => a.name.localeCompare(b.name, 'es'));
   }
 
-  getCharacter(id) {
-    return this.data.characters.find(c => c.id === id) || null;
+  getCharacter(id, projectId = null) {
+    return this.data.characters.find(c => c.id === id && (!projectId || c.projectId === projectId)) || null;
   }
 
   createCharacter(params) {
@@ -366,8 +354,8 @@ class Store {
       .sort((a, b) => a.name.localeCompare(b.name, 'es'));
   }
 
-  getGroup(id) {
-    return (this.data.groups || []).find(g => g.id === id) || null;
+  getGroup(id, projectId = null) {
+    return (this.data.groups || []).find(g => g.id === id && (!projectId || g.projectId === projectId)) || null;
   }
 
   createGroup(params) {
@@ -413,13 +401,43 @@ class Store {
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   }
 
-  getRelationship(id) {
-    return (this.data.relationships || []).find(r => r.id === id) || null;
+  getRelationship(id, projectId = null) {
+    return (this.data.relationships || []).find(r => r.id === id && (!projectId || r.projectId === projectId)) || null;
+  }
+
+  validateRelationship(params, projectId) {
+    if (!projectId) return { valid: false, error: 'Se requiere un identificador de proyecto válido' };
+    if (!params.sourceId || !params.targetId) return { valid: false, error: 'Se requieren ambas entidades para establecer el vínculo' };
+    if (params.sourceId === params.targetId) return { valid: false, error: 'Una entidad no puede relacionarse consigo misma' };
+
+    const src = this.getEntity(params.sourceId, projectId);
+    const tgt = this.getEntity(params.targetId, projectId);
+    if (!src || !tgt) return { valid: false, error: 'Ambas entidades deben existir en el mismo proyecto' };
+
+    // Coherencia básica de fechas si ambas son numéricas
+    if (params.startDate && params.endDate) {
+      const numStart = parseInt(params.startDate, 10);
+      const numEnd = parseInt(params.endDate, 10);
+      if (!isNaN(numStart) && !isNaN(numEnd) && numStart > numEnd) {
+        return { valid: false, error: 'La fecha de inicio no puede ser posterior a la fecha de fin' };
+      }
+    }
+    return { valid: true, src, tgt };
   }
 
   createRelationship(params) {
     const projectId = params.projectId || this.activeProjectId;
-    const relationship = createRelationship({ ...params, projectId });
+    const validation = this.validateRelationship(params, projectId);
+    if (!validation.valid) {
+      console.warn('createRelationship rechazada:', validation.error);
+      return null;
+    }
+    const relationship = createRelationship({
+      ...params,
+      projectId,
+      sourceType: validation.src.type,
+      targetType: validation.tgt.type
+    });
     if (!this.data.relationships) this.data.relationships = [];
     this.data.relationships.push(relationship);
     this.touchProject(projectId);
@@ -430,7 +448,17 @@ class Store {
   updateRelationship(id, patch) {
     const rel = this.getRelationship(id);
     if (!rel) return null;
-    Object.assign(rel, patch, { updatedAt: new Date().toISOString() });
+    const merged = { ...rel, ...patch };
+    const validation = this.validateRelationship(merged, rel.projectId);
+    if (!validation.valid) {
+      console.warn('updateRelationship rechazada:', validation.error);
+      return null;
+    }
+    Object.assign(rel, patch, {
+      sourceType: validation.src.type,
+      targetType: validation.tgt.type,
+      updatedAt: new Date().toISOString()
+    });
     this.touchProject(rel.projectId);
     this.save();
     return rel;
@@ -445,12 +473,13 @@ class Store {
     this.save();
   }
 
-  /* Consultas especializadas de relaciones */
-  getEntity(id) {
-    const char = this.getCharacter(id);
+  /* Consultas especializadas de relaciones con aislamiento por proyecto */
+  getEntity(id, projectId = null) {
+    const char = this.getCharacter(id, projectId);
     if (char) {
       return {
         id: char.id,
+        projectId: char.projectId,
         name: char.name,
         subtitle: char.alias || char.role,
         color: char.avatarColor || '#B45309',
@@ -458,16 +487,32 @@ class Store {
         original: char
       };
     }
-    const group = this.getGroup(id);
+    const group = this.getGroup(id, projectId);
     if (group) {
       return {
         id: group.id,
+        projectId: group.projectId,
         name: group.name,
         subtitle: group.motto || group.type,
         color: group.color || '#4F46E5',
         type: 'group',
         original: group
       };
+    }
+    // Extensibilidad futura (lugares, artefactos, etc.)
+    if (this.data.places) {
+      const place = this.data.places.find(p => p.id === id && (!projectId || p.projectId === projectId));
+      if (place) {
+        return {
+          id: place.id,
+          projectId: place.projectId,
+          name: place.name,
+          subtitle: place.type,
+          color: place.color || '#10B981',
+          type: 'place',
+          original: place
+        };
+      }
     }
     return null;
   }
@@ -477,7 +522,7 @@ class Store {
     return allRels.filter(r => r.sourceId === charId || r.targetId === charId).map(rel => {
       const isSource = rel.sourceId === charId;
       const otherId = isSource ? rel.targetId : rel.sourceId;
-      const otherEntity = this.getEntity(otherId);
+      const otherEntity = this.getEntity(otherId, projectId);
       
       const myRole = isSource ? (rel.roleSource || rel.type) : (rel.roleTarget || rel.roleSource || rel.type);
       const otherRole = isSource ? (rel.roleTarget || rel.roleSource || rel.type) : (rel.roleSource || rel.type);
@@ -489,7 +534,7 @@ class Store {
         myRole,
         otherRole
       };
-    });
+    }).filter(item => item.otherEntity !== null);
   }
 
   getCharacterFamily(charId, projectId = this.activeProjectId) {
@@ -516,7 +561,8 @@ class Store {
     loveRels.forEach(r => {
       if (r.sourceId === charId || r.targetId === charId) {
         const otherId = r.sourceId === charId ? r.targetId : r.sourceId;
-        const other = this.getCharacter(otherId);
+        if (otherId === charId) return; // Evitar autorreferencia
+        const other = this.getCharacter(otherId, projectId);
         if (other && !spouses.some(s => s.character.id === other.id)) {
           spouses.push({ character: other, relationship: r });
         }
@@ -530,7 +576,8 @@ class Store {
       if (!isSource && !isTarget) return;
 
       const otherId = isSource ? r.targetId : r.sourceId;
-      const other = this.getCharacter(otherId);
+      if (otherId === charId) return; // Evitar autorreferencia
+      const other = this.getCharacter(otherId, projectId);
       if (!other) return;
 
       if (r.type === 'hermanos') {
@@ -576,8 +623,14 @@ class Store {
         r.targetId !== charId
       );
       parentRels.forEach(pr => {
-        const siblingChar = this.getCharacter(pr.targetId);
-        if (siblingChar && !siblings.some(s => s.character.id === siblingChar.id)) {
+        const siblingChar = this.getCharacter(pr.targetId, projectId);
+        if (
+          siblingChar &&
+          siblingChar.id !== charId &&
+          !parents.some(par => par.character.id === siblingChar.id) &&
+          !children.some(ch => ch.character.id === siblingChar.id) &&
+          !siblings.some(s => s.character.id === siblingChar.id)
+        ) {
           siblings.push({
             character: siblingChar,
             relationship: {
@@ -601,8 +654,13 @@ class Store {
         r.targetId === p.character.id
       );
       gparents.forEach(gpr => {
-        const grandParentChar = this.getCharacter(gpr.sourceId);
-        if (grandParentChar && !ancestors.some(a => a.character.id === grandParentChar.id)) {
+        const grandParentChar = this.getCharacter(gpr.sourceId, projectId);
+        if (
+          grandParentChar &&
+          grandParentChar.id !== charId &&
+          !parents.some(par => par.character.id === grandParentChar.id) &&
+          !ancestors.some(a => a.character.id === grandParentChar.id)
+        ) {
           ancestors.push({
             character: grandParentChar,
             relationship: gpr,
@@ -620,8 +678,13 @@ class Store {
         r.sourceId === c.character.id
       );
       gchildren.forEach(gcr => {
-        const grandChildChar = this.getCharacter(gcr.targetId);
-        if (grandChildChar && !descendants.some(d => d.character.id === grandChildChar.id)) {
+        const grandChildChar = this.getCharacter(gcr.targetId, projectId);
+        if (
+          grandChildChar &&
+          grandChildChar.id !== charId &&
+          !children.some(ch => ch.character.id === grandChildChar.id) &&
+          !descendants.some(d => d.character.id === grandChildChar.id)
+        ) {
           descendants.push({
             character: grandChildChar,
             relationship: gcr,
@@ -643,7 +706,7 @@ class Store {
     return rels.map(r => {
       const isGroupTarget = r.targetId === groupId;
       const charId = isGroupTarget ? r.sourceId : r.targetId;
-      const character = this.getCharacter(charId);
+      const character = this.getCharacter(charId, projectId);
       const role = isGroupTarget ? (r.roleSource || 'Miembro') : (r.roleTarget || 'Miembro');
 
       return {
@@ -786,8 +849,9 @@ class Store {
     const relationships = (this.data.relationships || [])
       .filter(r => !activeId || r.projectId === activeId)
       .filter(r => {
-        const source = this.getEntity(r.sourceId);
-        const target = this.getEntity(r.targetId);
+        const source = this.getEntity(r.sourceId, r.projectId);
+        const target = this.getEntity(r.targetId, r.projectId);
+        if (!source || !target) return false;
         return (
           (source && source.name.toLowerCase().includes(q)) ||
           (target && target.name.toLowerCase().includes(q)) ||
@@ -806,13 +870,18 @@ class Store {
      Copia de Seguridad (Exportar / Importar)
      ========================================================================== */
   exportData() {
-    return JSON.stringify(this.data, null, 2);
+    return JSON.stringify({
+      schemaVersion: this.schemaVersion || CURRENT_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      ...this.data
+    }, null, 2);
   }
 
   importData(jsonString) {
     try {
       const parsed = JSON.parse(jsonString);
       if (parsed && Array.isArray(parsed.projects)) {
+        this.schemaVersion = parsed.schemaVersion || CURRENT_SCHEMA_VERSION;
         this.data = {
           projects: parsed.projects || [],
           chapters: parsed.chapters || [],

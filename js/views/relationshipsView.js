@@ -43,7 +43,7 @@ export class RelationshipsView {
     }
 
     const charFocusId = params.charId || params.characterId;
-    if (charFocusId && store.getCharacter(charFocusId)) {
+    if (charFocusId && store.getCharacter(charFocusId, project.id)) {
       this.selectedLineageCharId = charFocusId;
     }
 
@@ -190,8 +190,8 @@ export class RelationshipsView {
 
     const filtered = allRels.filter(r => {
       const matchCat = this.currentCategoryFilter === 'all' || r.category === this.currentCategoryFilter;
-      const source = store.getEntity(r.sourceId);
-      const target = store.getEntity(r.targetId);
+      const source = store.getEntity(r.sourceId, project.id);
+      const target = store.getEntity(r.targetId, project.id);
 
       const matchQuery = !q ||
         (source && source.name.toLowerCase().includes(q)) ||
@@ -218,8 +218,8 @@ export class RelationshipsView {
     }
 
     const cardsHtml = filtered.map(rel => {
-      const source = store.getEntity(rel.sourceId);
-      const target = store.getEntity(rel.targetId);
+      const source = store.getEntity(rel.sourceId, project.id);
+      const target = store.getEntity(rel.targetId, project.id);
       if (!source || !target) return '';
 
       const connectorIcon = rel.isSymmetric ? '↔' : '➔';
@@ -479,7 +479,7 @@ export class RelationshipsView {
       return `<div class="card" style="padding: 24px; text-align: center; color: var(--text-muted);">No hay personajes creados en este proyecto.</div>`;
     }
 
-    const currentChar = store.getCharacter(this.selectedLineageCharId) || characters[0];
+    const currentChar = store.getCharacter(this.selectedLineageCharId, project.id) || characters[0];
     const family = store.getCharacterFamily(currentChar.id, project.id);
 
     return `
@@ -1136,7 +1136,7 @@ export class RelationshipsView {
         ` : rels.map(r => {
           const isSource = r.sourceId === node.id;
           const otherId = isSource ? r.targetId : r.sourceId;
-          const other = store.getEntity(otherId);
+          const other = store.getEntity(otherId, project.id);
           if (!other) return '';
 
           const roleDisplay = isSource
@@ -1401,6 +1401,15 @@ export class RelationshipsView {
           return false;
         }
 
+        if (startDate && endDate) {
+          const numStart = parseInt(startDate, 10);
+          const numEnd = parseInt(endDate, 10);
+          if (!isNaN(numStart) && !isNaN(numEnd) && numStart > numEnd) {
+            showToast('La fecha de inicio no puede ser posterior a la de fin', 'error');
+            return false;
+          }
+        }
+
         const data = {
           sourceId,
           sourceType: sourceTypePrefix === 'group' ? 'group' : 'character',
@@ -1418,10 +1427,18 @@ export class RelationshipsView {
         };
 
         if (isEditing) {
-          store.updateRelationship(relationship.id, data);
+          const res = store.updateRelationship(relationship.id, data);
+          if (!res) {
+            showToast('No se pudo actualizar la relación', 'error');
+            return false;
+          }
           showToast('Relación actualizada con éxito', 'success');
         } else {
-          store.createRelationship({ ...data, projectId });
+          const res = store.createRelationship({ ...data, projectId });
+          if (!res) {
+            showToast('No se pudo crear la relación', 'error');
+            return false;
+          }
           showToast('Relación creada con éxito', 'success');
         }
 
