@@ -60,6 +60,12 @@ class Store {
           this.schemaVersion = CURRENT_SCHEMA_VERSION;
           this.save();
         }
+
+        // Auto-rehidratación de lugares de muestra para 'proj-susurro-sombras' si está vacío
+        const samplePlacesCount = (this.data.places || []).filter(p => p.projectId === 'proj-susurro-sombras').length;
+        if (this.data.projects.some(p => p.id === 'proj-susurro-sombras') && samplePlacesCount === 0) {
+          this.restoreSampleWorldData('proj-susurro-sombras');
+        }
       } else {
         // Inicializar con datos de muestra solo en instalación limpia
         this.loadSampleData();
@@ -76,6 +82,38 @@ class Store {
     } else if (this.data.projects.length > 0) {
       this.activeProjectId = this.data.projects[0].id;
     }
+  }
+
+  restoreSampleWorldData(projectId = 'proj-susurro-sombras') {
+    if (projectId !== 'proj-susurro-sombras') return;
+
+    // 1. Mantener todos los lugares de otros proyectos intactos
+    this.data.places = (this.data.places || []).filter(p => p.projectId !== projectId);
+
+    // 2. Limpiar solo relaciones previas de lugares del proyecto de muestra
+    const samplePlaceIds = new Set((sampleProjectData.places || []).map(p => p.id));
+    this.data.relationships = (this.data.relationships || []).filter(r =>
+      r.projectId !== projectId || (!samplePlaceIds.has(r.sourceId) && !samplePlaceIds.has(r.targetId))
+    );
+
+    // 3. Reincorporar todos los lugares de muestra de 'proj-susurro-sombras'
+    const samplePlaces = JSON.parse(JSON.stringify(sampleProjectData.places || []));
+    this.data.places.push(...samplePlaces);
+
+    // 4. Reincorporar las relaciones de muestra asociadas a lugares
+    const samplePlaceRels = JSON.parse(JSON.stringify(
+      (sampleProjectData.relationships || []).filter(r =>
+        r.projectId === projectId && (
+          r.sourceType === 'place' ||
+          r.targetType === 'place' ||
+          samplePlaceIds.has(r.sourceId) ||
+          samplePlaceIds.has(r.targetId)
+        )
+      )
+    ));
+    this.data.relationships.push(...samplePlaceRels);
+
+    this.save();
   }
 
   loadSampleData() {

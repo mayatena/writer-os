@@ -192,10 +192,18 @@ export class WorldView {
           <p style="color: var(--text-muted); max-width: 440px; margin: 0 auto var(--space-lg) auto; font-size: 0.875rem;">
             ${this.searchQuery ? 'No hay ningún lugar que coincida con los términos de búsqueda.' : 'Comienza construyendo el mapa y los territorios de tu historia.'}
           </p>
-          <button class="btn btn-primary" id="btn-empty-new-place">
-            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>Crear primer lugar</span>
-          </button>
+          <div style="display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-primary" id="btn-empty-new-place">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>Crear primer lugar</span>
+            </button>
+            ${(!this.searchQuery && project.id === 'proj-susurro-sombras') ? `
+              <button class="btn btn-secondary" id="btn-restore-sample-world">
+                <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                <span>Recuperar lugares de ejemplo</span>
+              </button>
+            ` : ''}
+          </div>
         </div>
       ` : `
         <div class="world-grid">
@@ -934,9 +942,14 @@ export class WorldView {
       this.render(container);
     });
 
-    // Botones de Creación
+    // Botones de Creación y Restauración
     container.querySelector('#btn-new-place')?.addEventListener('click', () => this.openPlaceModal(null, project.id));
     container.querySelector('#btn-empty-new-place')?.addEventListener('click', () => this.openPlaceModal(null, project.id));
+    container.querySelector('#btn-restore-sample-world')?.addEventListener('click', () => {
+      store.restoreSampleWorldData(project.id);
+      showToast('Lugares de ejemplo recuperados correctamente', 'success');
+      this.render(container);
+    });
 
     // Añadir hijo desde árbol
     container.querySelectorAll('.btn-add-child-place').forEach(btn => {
